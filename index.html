@@ -476,18 +476,19 @@
           }
         } catch(e) {}
 
-        // Inflows resolving (Actual > 0 else Planned)
+// Inflows resolving (Actual exists else Planned)
         const getValHtml = (actual, planned, type, lockedFlag, idx) => {
+          const hasActual = actual !== "" && actual !== null && actual !== undefined;
           const actNum = parseFloat(actual) || 0;
           const planNum = parseFloat(planned) || 0;
 
           if (lockedFlag) {
-            if (actNum > 0) return `<span class="val-actual">${formatILS(actNum)}</span>`;
+            if (hasActual) return `<span class="val-actual">${formatILS(actNum)}</span>`;
             if (planNum > 0) return `<span class="val-planned">${formatILS(planNum)} (צפי)</span>`;
             return `<span class="val-actual">0 ₪</span>`;
           } else {
             // Unlocked - Input Field
-            const val = actNum > 0 ? actNum : planNum;
+            const val = hasActual ? actNum : planNum;
             return `<input type="number" id="input-${type}-${idx}" class="input-edit" value="${val}" step="0.01">`;
           }
         };
