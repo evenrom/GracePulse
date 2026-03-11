@@ -401,9 +401,9 @@
           return `<span class="val-actual">0 ₪</span>`;
         };
 
-        const romHtml = getValHtml(row.Rom_Actual, row.Rom_Planned);
-        const yaelHtml = getValHtml(row.Yael_Actual, row.Yael_Planned);
-        const depHtml = getValHtml(row.Deposit_Actual, row.Deposit_Planned);
+        const romHtml = getValHtml(row.Actual_Rom, row.Planned_Rom);
+        const yaelHtml = getValHtml(row.Actual_Yael, row.Planned_Yael);
+        const depHtml = getValHtml(row.Actual_Deposit, row.Planned_Deposit);
 
         const graceDed = parseFloat(row.Grace_Deduction) || 0;
         const endBal = parseFloat(row.End_Balance) || 0;
