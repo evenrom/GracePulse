@@ -140,7 +140,7 @@
 
     .grace-row { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 2px solid var(--border-color); font-weight: 700; color: var(--danger); }
 
-    .action-row { margin-top: 1rem; text-align: center; }
+    .action-row { margin-top: 1rem; text-align: center; display: flex; flex-direction: column; gap: 0.5rem; }
     .btn-approve {
       background: var(--success); color: white; border: none; padding: 0.75rem 1.5rem;
       border-radius: 8px; font-weight: 600; font-family: var(--font-heading); font-size: 1rem;
@@ -150,6 +150,21 @@
     }
     .btn-approve:active { background: #2f855a; transform: translateY(1px); }
     .btn-approve:disabled { background: var(--text-muted); cursor: not-allowed; box-shadow: none; }
+
+    .btn-save {
+      background: var(--primary); color: white; border: none; padding: 0.75rem 1.5rem;
+      border-radius: 8px; font-weight: 600; font-family: var(--font-heading); font-size: 1rem;
+      width: 100%; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 0.5rem;
+      box-shadow: 0 2px 4px rgba(43, 108, 176, 0.3);
+      transition: background 0.2s;
+    }
+    .btn-save:active { background: #2c5282; transform: translateY(1px); }
+
+    .input-edit {
+      width: 100px; padding: 0.25rem 0.5rem; border: 1px solid var(--border-color);
+      border-radius: 4px; font-family: var(--font-body); font-size: 0.9rem; text-align: left;
+    }
+    .input-edit:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px rgba(66, 153, 225, 0.5); }
 
     /* Toast Notification */
     #toast {
@@ -188,6 +203,10 @@
       <div class="stat-box">
         <div class="stat-label">נותר לשלם לקבלן</div>
         <div class="stat-value" id="remaining-contractor">-- ₪</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">יתרה סופית צפויה</div>
+        <div class="stat-value" id="projected-final">-- ₪</div>
       </div>
     </div>
   </header>
@@ -318,6 +337,50 @@
       }
     }
 
+    // API: Update Inflows
+    async function updateInflows(monthStr, index) {
+      const romInput = document.getElementById(`input-rom-${index}`);
+      const yaelInput = document.getElementById(`input-yael-${index}`);
+      const depInput = document.getElementById(`input-dep-${index}`);
+
+      const romVal = parseFloat(romInput.value) || 0;
+      const yaelVal = parseFloat(yaelInput.value) || 0;
+      const depVal = parseFloat(depInput.value) || 0;
+
+      showLoading(true);
+      try {
+        const payload = {
+          action: "updateInflows",
+          month: monthStr,
+          rom: romVal,
+          yael: yaelVal,
+          deposit: depVal
+        };
+
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8',
+          }
+        });
+
+        if (!response.ok) throw new Error("Network request failed");
+
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+
+        appState = data;
+        renderApp();
+        showToast("הנתונים נשמרו בהצלחה");
+      } catch (error) {
+        console.error("Update failed:", error);
+        showToast(`שגיאה בשמירת הנתונים: ${error.message}`, "error");
+      } finally {
+        showLoading(false);
+      }
+    }
+
     // Calculate Active Drawn per Track locally based on milestones up to "today" (for the progress bars)
     function calculateActiveDrawnForBars() {
       let drawn = { Mishtana: 0, Kavua: 0, Prime: 0 };
@@ -346,6 +409,22 @@
       document.getElementById('liquid-balance').textContent = formatILS(appState.aggregates.liquidBalance);
       document.getElementById('remaining-contractor').textContent = formatILS(appState.aggregates.totalRemainingToContractor);
       document.getElementById('current-prime').textContent = appState.aggregates.currentPrimeRate;
+
+      // Calculate and display Projected Final Balance
+      const projectedFinalEl = document.getElementById('projected-final');
+      if (appState.ledger && appState.ledger.length > 0) {
+        const lastRow = appState.ledger[appState.ledger.length - 1];
+        const finalBalance = parseFloat(lastRow.End_Balance) || 0;
+        projectedFinalEl.textContent = formatILS(finalBalance);
+
+        if (finalBalance < 0) {
+          projectedFinalEl.style.color = 'var(--danger)';
+        } else if (finalBalance > 0) {
+          projectedFinalEl.style.color = 'var(--success)';
+        } else {
+          projectedFinalEl.style.color = 'inherit';
+        }
+      }
 
       // 2. Tracks Progress
       const drawn = calculateActiveDrawnForBars();
@@ -398,17 +477,24 @@
         } catch(e) {}
 
         // Inflows resolving (Actual > 0 else Planned)
-        const getValHtml = (actual, planned) => {
+        const getValHtml = (actual, planned, type, lockedFlag, idx) => {
           const actNum = parseFloat(actual) || 0;
           const planNum = parseFloat(planned) || 0;
-          if (actNum > 0) return `<span class="val-actual">${formatILS(actNum)}</span>`;
-          if (planNum > 0) return `<span class="val-planned">${formatILS(planNum)} (צפי)</span>`;
-          return `<span class="val-actual">0 ₪</span>`;
+
+          if (lockedFlag) {
+            if (actNum > 0) return `<span class="val-actual">${formatILS(actNum)}</span>`;
+            if (planNum > 0) return `<span class="val-planned">${formatILS(planNum)} (צפי)</span>`;
+            return `<span class="val-actual">0 ₪</span>`;
+          } else {
+            // Unlocked - Input Field
+            const val = actNum > 0 ? actNum : planNum;
+            return `<input type="number" id="input-${type}-${idx}" class="input-edit" value="${val}" step="0.01">`;
+          }
         };
 
-        const romHtml = getValHtml(row.Actual_Rom, row.Planned_Rom);
-        const yaelHtml = getValHtml(row.Actual_Yael, row.Planned_Yael);
-        const depHtml = getValHtml(row.Actual_Deposit, row.Planned_Deposit);
+        const romHtml = getValHtml(row.Actual_Rom, row.Planned_Rom, 'rom', locked, index);
+        const yaelHtml = getValHtml(row.Actual_Yael, row.Planned_Yael, 'yael', locked, index);
+        const depHtml = getValHtml(row.Actual_Deposit, row.Planned_Deposit, 'dep', locked, index);
 
         const graceDed = parseFloat(row.Grace_Deduction) || 0;
         const endBal = parseFloat(row.End_Balance) || 0;
@@ -446,19 +532,22 @@
                 <span class="detail-val">- ${formatILS(graceDed)}</span>
               </div>
 
-              ${isActive && !locked ? `
+              ${!locked ? `
                 <div class="action-row">
+                  <button class="btn-save" onclick="updateInflows('${row.Month}', ${index})">
+                    <i class="fa-solid fa-floppy-disk"></i> שמור שינויים
+                  </button>
+                  ${isActive ? `
                   <button class="btn-approve" onclick="lockMonth('${row.Month}', this)">
                     <i class="fa-solid fa-check-circle"></i> אשר וסגור חודש
                   </button>
+                  ` : ''}
                 </div>
-              ` : ''}
-
-              ${locked ? `
+              ` : `
                 <div class="action-row" style="text-align: right; font-size: 0.8rem; color: var(--success); display: flex; align-items: center; gap: 0.25rem;">
                   <i class="fa-solid fa-shield-halved"></i> חודש נעול (קריאה בלבד)
                 </div>
-              ` : ''}
+              `}
             </div>
           </div>
         `;
