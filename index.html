@@ -325,6 +325,11 @@
         appState = data;
         renderApp();
         showToast("החודש אושר וננעל בהצלחה");
+
+        // --- Dexter's Fix: שורת הכיבוי שג'ולס שכח ---
+        showLoading(false); 
+        // ---------------------------------------------
+        
       } catch (error) {
         console.error("Locking failed:", error);
         showToast(`שגיאה באישור החודש: ${error.message}`, "error");
@@ -487,9 +492,9 @@
           }
         };
 
-        const romHtml = getValHtml(row.Rom_Actual, row.Rom_Planned, 'rom', locked, index);
-        const yaelHtml = getValHtml(row.Yael_Actual, row.Yael_Planned, 'yael', locked, index);
-        const depHtml = getValHtml(row.Deposit_Actual, row.Deposit_Planned, 'dep', locked, index);
+        const romHtml = getValHtml(row.Actual_Rom, row.Planned_Rom, 'rom', locked, index);
+        const yaelHtml = getValHtml(row.Actual_Yael, row.Planned_Yael, 'yael', locked, index);
+        const depHtml = getValHtml(row.Actual_Deposit, row.Planned_Deposit, 'dep', locked, index);
 
         const graceDed = parseFloat(row.Grace_Deduction) || 0;
         const endBal = parseFloat(row.End_Balance) || 0;
