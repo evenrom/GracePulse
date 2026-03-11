@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>GracePulse</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    /* CSS Variables & Reset */
+    :root {
+      --primary: #2b6cb0;
+      --primary-light: #4299e1;
+      --success: #38a169;
+      --danger: #e53e3e;
+      --warning: #d69e2e;
+      --bg-color: #f7fafc;
+      --card-bg: #ffffff;
+      --text-main: #2d3748;
+      --text-muted: #718096;
+      --border-color: #e2e8f0;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+      --font-heading: 'Rubik', sans-serif;
+      --font-body: 'Assistant', sans-serif;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-body);
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      line-height: 1.5;
+      padding-bottom: 80px; /* Space for scrolling past the end */
+    }
+
+    h1, h2, h3, h4, .font-heading { font-family: var(--font-heading); }
+
+    /* Utilities */
+    .hidden { display: none !important; }
+    .text-success { color: var(--success); }
+    .text-danger { color: var(--danger); }
+    .font-bold { font-weight: 700; }
+
+    /* Loading Overlay */
+    #loading-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(255, 255, 255, 0.9);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 9999;
+    }
+    .spinner {
+      border: 4px solid var(--border-color);
+      border-top: 4px solid var(--primary);
+      border-radius: 50%; width: 40px; height: 40px;
+      animation: spin 1s linear infinite; margin-bottom: 1rem;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    /* Sticky Header Dashboard */
+    .sticky-header {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--primary); color: white;
+      padding: 1rem; box-shadow: var(--shadow-md);
+      border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;
+    }
+    .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .header-top h1 { font-size: 1.25rem; margin: 0; font-weight: 500; }
+    .header-stats { display: flex; justify-content: space-between; gap: 1rem; }
+    .stat-box { flex: 1; background: rgba(255,255,255,0.1); padding: 0.75rem; border-radius: 8px; text-align: center; }
+    .stat-label { font-size: 0.75rem; opacity: 0.9; margin-bottom: 0.25rem; }
+    .stat-value { font-size: 1.25rem; font-weight: 700; font-family: var(--font-heading); }
+
+    /* Main Container */
+    .container { padding: 1rem; max-width: 600px; margin: 0 auto; }
+
+    /* Section Titles */
+    .section-title { font-size: 1.1rem; font-weight: 600; margin: 1.5rem 0 1rem; color: var(--text-main); border-bottom: 2px solid var(--primary-light); display: inline-block; padding-bottom: 0.25rem;}
+
+    /* Track Progress Bars */
+    .tracks-card { background: var(--card-bg); border-radius: 12px; padding: 1rem; box-shadow: var(--shadow-sm); margin-bottom: 1.5rem; }
+    .track-item { margin-bottom: 1rem; }
+    .track-item:last-child { margin-bottom: 0; }
+    .track-header { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 0.5rem; }
+    .track-name { font-weight: 600; }
+    .progress-bg { background: var(--border-color); height: 8px; border-radius: 4px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--primary); transition: width 0.5s ease-out; }
+    .progress-fill.mishtana { background: var(--primary-light); }
+    .progress-fill.kavua { background: var(--primary); }
+    .progress-fill.prime { background: var(--warning); }
+
+    /* Ledger Cards (Accordion) */
+    .ledger-list { display: flex; flex-direction: column; gap: 1rem; }
+    .ledger-card {
+      background: var(--card-bg); border-radius: 12px; box-shadow: var(--shadow-sm);
+      border: 1px solid var(--border-color); overflow: hidden;
+      transition: box-shadow 0.2s;
+    }
+    .ledger-card.locked { border-right: 4px solid var(--success); }
+    .ledger-card.active { border-right: 4px solid var(--warning); box-shadow: var(--shadow-md); }
+
+    .card-header {
+      padding: 1rem; display: flex; justify-content: space-between; align-items: center;
+      cursor: pointer; user-select: none;
+    }
+    .month-info { display: flex; align-items: center; gap: 0.5rem; }
+    .month-name { font-weight: 700; font-size: 1.1rem; font-family: var(--font-heading); }
+    .lock-icon { color: var(--success); font-size: 0.9rem; }
+    .balance-info { text-align: left; }
+    .balance-label { font-size: 0.7rem; color: var(--text-muted); }
+    .balance-val { font-weight: 600; font-size: 1.1rem; }
+    .expand-icon { color: var(--text-muted); transition: transform 0.3s; margin-right: 0.5rem; }
+    .ledger-card.open .expand-icon { transform: rotate(180deg); }
+
+    /* Card Body (Expanded) */
+    .card-body {
+      padding: 0 1rem; max-height: 0; overflow: hidden;
+      transition: max-height 0.3s ease-out, padding 0.3s ease-out;
+      background: #fafafa; border-top: 1px solid transparent;
+    }
+    .ledger-card.open .card-body { max-height: 500px; padding: 1rem; border-top-color: var(--border-color); }
+
+    .detail-row { display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.9rem; border-bottom: 1px dashed var(--border-color); padding-bottom: 0.25rem; }
+    .detail-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .detail-label { color: var(--text-muted); }
+    .detail-val { font-weight: 600; }
+
+    /* Planned vs Actual indicator */
+    .val-actual { color: var(--text-main); }
+    .val-planned { color: var(--text-muted); font-style: italic; font-size: 0.85em; }
+
+    .grace-row { margin-top: 0.75rem; padding-top: 0.75rem; border-top: 2px solid var(--border-color); font-weight: 700; color: var(--danger); }
+
+    .action-row { margin-top: 1rem; text-align: center; }
+    .btn-approve {
+      background: var(--success); color: white; border: none; padding: 0.75rem 1.5rem;
+      border-radius: 8px; font-weight: 600; font-family: var(--font-heading); font-size: 1rem;
+      width: 100%; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 0.5rem;
+      box-shadow: 0 2px 4px rgba(56, 161, 105, 0.3);
+      transition: background 0.2s;
+    }
+    .btn-approve:active { background: #2f855a; transform: translateY(1px); }
+    .btn-approve:disabled { background: var(--text-muted); cursor: not-allowed; box-shadow: none; }
+
+    /* Toast Notification */
+    #toast {
+      visibility: hidden; min-width: 250px; background-color: #333; color: #fff;
+      text-align: center; border-radius: 8px; padding: 16px;
+      position: fixed; z-index: 1000; left: 50%; bottom: 30px; transform: translateX(-50%);
+      font-size: 15px; transition: opacity 0.3s, visibility 0.3s; opacity: 0;
+    }
+    #toast.show { visibility: visible; opacity: 1; }
+    #toast.error { background-color: var(--danger); }
+    #toast.success { background-color: var(--success); }
+
+  </style>
+</head>
+<body>
+
+  <!-- Loading State -->
+  <div id="loading-overlay">
+    <div class="spinner"></div>
+    <div style="font-weight: 600; color: var(--primary);">טוען נתונים...</div>
+  </div>
+
+  <!-- Sticky Dashboard -->
+  <header class="sticky-header">
+    <div class="header-top">
+      <h1><i class="fa-solid fa-house-chimney" style="margin-left: 0.5rem;"></i> GracePulse</h1>
+      <div id="prime-rate-display" style="font-size: 0.8rem; background: rgba(0,0,0,0.2); padding: 0.2rem 0.6rem; border-radius: 12px;">
+        פריים: <span id="current-prime">--</span>%
+      </div>
+    </div>
+    <div class="header-stats">
+      <div class="stat-box">
+        <div class="stat-label">יתרת נזילות נוכחית</div>
+        <div class="stat-value" id="liquid-balance">-- ₪</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">נותר לשלם לקבלן</div>
+        <div class="stat-value" id="remaining-contractor">-- ₪</div>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- Tracks Progress -->
+    <h2 class="section-title">התקדמות מסלולים</h2>
+    <div class="tracks-card" id="tracks-container">
+      <!-- Tracks injected here via JS -->
+    </div>
+
+    <!-- Monthly Ledger -->
+    <h2 class="section-title">פירוט חודשי (גרייס)</h2>
+    <div class="ledger-list" id="ledger-container">
+      <!-- Ledger cards injected here via JS -->
+    </div>
+
+  </main>
+
+  <!-- Toast -->
+  <div id="toast">הודעה...</div>
+
+  <script>
+    // Configuration
+    const API_URL = "https://script.google.com/macros/s/AKfycbynKvGOWRIvJBiBcKlalJ4CJmCJi6Rnor1ytXRTntYIVJb7rDBxsnrlFlmgZ8eHzxV8Lw/exec";
+
+    // Constants for totals
+    const TRACK_TOTALS = {
+      Mishtana: 327000,
+      Kavua: 654000,
+      Prime: 654000
+    };
+
+    // State
+    let appState = null;
+
+    // Utility: Format Currency
+    const formatILS = (num) => {
+      const val = parseFloat(num) || 0;
+      return new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(val);
+    };
+
+    // Utility: Parse boolean from string/bool
+    const isTrue = (val) => val === true || String(val).toUpperCase() === 'TRUE';
+
+    // UI Utilities
+    const showLoading = (show) => {
+      document.getElementById('loading-overlay').classList.toggle('hidden', !show);
+    };
+
+    const showToast = (message, type = 'success') => {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = `show ${type}`;
+      setTimeout(() => { toast.className = toast.className.replace('show', '').trim(); }, 3000);
+    };
+
+    // Initialize App
+    async function initApp() {
+      try {
+        await fetchState();
+      } catch (error) {
+        console.error("Initialization failed:", error);
+        showToast("שגיאה בטעינת הנתונים", "error");
+        showLoading(false);
+      }
+    }
+
+    // API: Fetch State
+    async function fetchState() {
+      showLoading(true);
+      try {
+        const response = await fetch(`${API_URL}?action=getState`, {
+          method: 'GET',
+        });
+
+        if (!response.ok) throw new Error("Network response was not ok");
+
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+
+        appState = data;
+        renderApp();
+      } catch (error) {
+        throw error;
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    // API: Lock Month
+    async function lockMonth(monthStr, btnElement) {
+      if(!confirm(`האם אתה בטוח שברצונך לנעול ולשמור את הנתונים עבור חודש ${monthStr}? פעולה זו אינה הפיכה.`)) return;
+
+      showLoading(true);
+      try {
+        const payload = { action: "lockMonth", month: monthStr };
+
+        // GAS Web Apps handle POST with JSON gracefully when method is POST and body is stringified.
+        // We use text/plain content type to avoid CORS preflight OPTION failure if GAS backend doesn't handle it perfectly,
+        // though standard is application/json. We will stick to standard fetch.
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          body: JSON.stringify(payload),
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8', // Bypass CORS preflight issues with GAS
+          }
+        });
+
+        if (!response.ok) throw new Error("Network request failed");
+
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+
+        appState = data;
+        renderApp();
+        showToast("החודש אושר וננעל בהצלחה");
+      } catch (error) {
+        console.error("Locking failed:", error);
+        showToast(`שגיאה באישור החודש: ${error.message}`, "error");
+        showLoading(false);
+      }
+    }
+
+    // Calculate Active Drawn per Track locally based on milestones up to "today" (for the progress bars)
+    function calculateActiveDrawnForBars() {
+      let drawn = { Mishtana: 0, Kavua: 0, Prime: 0 };
+      const today = new Date();
+
+      if (!appState || !appState.milestones) return drawn;
+
+      appState.milestones.forEach(m => {
+        let mDate = new Date(m.Date);
+        if (mDate <= today) {
+          let track = String(m.Track).toLowerCase();
+          let amount = parseFloat(m.Amount) || 0;
+          if (track.includes('mishtana')) drawn.Mishtana += amount;
+          else if (track.includes('kavua')) drawn.Kavua += amount;
+          else if (track.includes('prime')) drawn.Prime += amount;
+        }
+      });
+      return drawn;
+    }
+
+    // Render App
+    function renderApp() {
+      if (!appState) return;
+
+      // 1. Dashboard Aggregates
+      document.getElementById('liquid-balance').textContent = formatILS(appState.aggregates.liquidBalance);
+      document.getElementById('remaining-contractor').textContent = formatILS(appState.aggregates.totalRemainingToContractor);
+      document.getElementById('current-prime').textContent = appState.aggregates.currentPrimeRate;
+
+      // 2. Tracks Progress
+      const drawn = calculateActiveDrawnForBars();
+      const tracksContainer = document.getElementById('tracks-container');
+
+      const tracksMeta = [
+        { key: 'Mishtana', name: 'משתנה כל 5', current: drawn.Mishtana, total: TRACK_TOTALS.Mishtana, class: 'mishtana' },
+        { key: 'Kavua', name: 'קבועה לא צמודה', current: drawn.Kavua, total: TRACK_TOTALS.Kavua, class: 'kavua' },
+        { key: 'Prime', name: 'פריים', current: drawn.Prime, total: TRACK_TOTALS.Prime, class: 'prime' }
+      ];
+
+      tracksContainer.innerHTML = tracksMeta.map(t => {
+        const pct = Math.min(100, Math.round((t.current / t.total) * 100)) || 0;
+        return `
+          <div class="track-item">
+            <div class="track-header">
+              <span class="track-name">${t.name}</span>
+              <span class="track-amounts">${formatILS(t.current)} / ${formatILS(t.total)} (${pct}%)</span>
+            </div>
+            <div class="progress-bg">
+              <div class="progress-fill ${t.class}" style="width: ${pct}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // 3. Ledger Accordion
+      const ledgerContainer = document.getElementById('ledger-container');
+
+      // Determine the active unlocked month (first row where Is_Locked is false)
+      let activeMonthIndex = -1;
+      for (let i = 0; i < appState.ledger.length; i++) {
+        if (!isTrue(appState.ledger[i].Is_Locked)) {
+          activeMonthIndex = i;
+          break;
+        }
+      }
+
+      ledgerContainer.innerHTML = appState.ledger.map((row, index) => {
+        const locked = isTrue(row.Is_Locked);
+        const isActive = index === activeMonthIndex;
+
+        // Format Month (e.g. 2025-10 -> אוקטובר 2025)
+        let displayMonth = row.Month;
+        try {
+          const d = new Date(row.Month);
+          if(!isNaN(d.getTime())) {
+            displayMonth = d.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' });
+          }
+        } catch(e) {}
+
+        // Inflows resolving (Actual > 0 else Planned)
+        const getValHtml = (actual, planned) => {
+          const actNum = parseFloat(actual) || 0;
+          const planNum = parseFloat(planned) || 0;
+          if (actNum > 0) return `<span class="val-actual">${formatILS(actNum)}</span>`;
+          if (planNum > 0) return `<span class="val-planned">${formatILS(planNum)} (צפי)</span>`;
+          return `<span class="val-actual">0 ₪</span>`;
+        };
+
+        const romHtml = getValHtml(row.Rom_Actual, row.Rom_Planned);
+        const yaelHtml = getValHtml(row.Yael_Actual, row.Yael_Planned);
+        const depHtml = getValHtml(row.Deposit_Actual, row.Deposit_Planned);
+
+        const graceDed = parseFloat(row.Grace_Deduction) || 0;
+        const endBal = parseFloat(row.End_Balance) || 0;
+
+        return `
+          <div class="ledger-card ${locked ? 'locked' : ''} ${isActive ? 'active open' : ''}" data-index="${index}">
+            <div class="card-header" onclick="toggleCard(this)">
+              <div class="month-info">
+                ${locked ? '<i class="fa-solid fa-lock lock-icon"></i>' : (isActive ? '<i class="fa-regular fa-clock" style="color:var(--warning)"></i>' : '')}
+                <span class="month-name">${displayMonth}</span>
+              </div>
+              <div style="display: flex; align-items: center;">
+                <div class="balance-info">
+                  <div class="balance-label">יתרת סגירה</div>
+                  <div class="balance-val">${formatILS(endBal)}</div>
+                </div>
+                <i class="fa-solid fa-chevron-down expand-icon" style="margin-right: 1rem;"></i>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="detail-row">
+                <span class="detail-label">הכנסה - רום:</span>
+                <span class="detail-val">${romHtml}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">הכנסה - יעל:</span>
+                <span class="detail-val">${yaelHtml}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">הפקדה (אחר):</span>
+                <span class="detail-val">${depHtml}</span>
+              </div>
+              <div class="detail-row grace-row">
+                <span class="detail-label" style="color: inherit;">ניכוי גרייס משוער:</span>
+                <span class="detail-val">- ${formatILS(graceDed)}</span>
+              </div>
+
+              ${isActive && !locked ? `
+                <div class="action-row">
+                  <button class="btn-approve" onclick="lockMonth('${row.Month}', this)">
+                    <i class="fa-solid fa-check-circle"></i> אשר וסגור חודש
+                  </button>
+                </div>
+              ` : ''}
+
+              ${locked ? `
+                <div class="action-row" style="text-align: right; font-size: 0.8rem; color: var(--success); display: flex; align-items: center; gap: 0.25rem;">
+                  <i class="fa-solid fa-shield-halved"></i> חודש נעול (קריאה בלבד)
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // UI: Toggle Accordion Card
+    window.toggleCard = function(headerElement) {
+      const card = headerElement.closest('.ledger-card');
+      // If we want accordion to auto-close others:
+      // document.querySelectorAll('.ledger-card').forEach(c => { if(c !== card) c.classList.remove('open'); });
+      card.classList.toggle('open');
+    };
+
+    // Boot
+    document.addEventListener("DOMContentLoaded", initApp);
+  </script>
+</body>
+</html>
