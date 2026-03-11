@@ -306,6 +306,11 @@
         appState = data;
         renderApp();
         showToast("החודש אושר וננעל בהצלחה");
+
+        // --- Dexter's Fix: שורת הכיבוי שג'ולס שכח ---
+        showLoading(false); 
+        // ---------------------------------------------
+        
       } catch (error) {
         console.error("Locking failed:", error);
         showToast(`שגיאה באישור החודש: ${error.message}`, "error");
