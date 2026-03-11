@@ -418,11 +418,11 @@
         projectedFinalEl.textContent = formatILS(finalBalance);
 
         if (finalBalance < 0) {
-          projectedFinalEl.style.color = 'var(--danger)';
+          projectedFinalEl.innerHTML = `<span style="background-color: var(--danger); color: white; padding: 2px 8px; border-radius: 12px; display: inline-block; box-shadow: var(--shadow-sm);">${formatILS(finalBalance)}</span>`;
         } else if (finalBalance > 0) {
-          projectedFinalEl.style.color = 'var(--success)';
+          projectedFinalEl.innerHTML = `<span style="background-color: var(--success); color: white; padding: 2px 8px; border-radius: 12px; display: inline-block; box-shadow: var(--shadow-sm);">${formatILS(finalBalance)}</span>`;
         } else {
-          projectedFinalEl.style.color = 'inherit';
+          projectedFinalEl.textContent = formatILS(finalBalance);
         }
       }
 
