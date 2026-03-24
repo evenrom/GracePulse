@@ -1,4 +1,4 @@
-# GracePulse: Product Requirements Document (PRD) & System Architecture (with IndexGuard)
+# GracePulse: Product Requirements Document (PRD) V2 & System Architecture (with IndexGuard)
 
 **To:** Dexter, VP R&D
 **From:** Jules, Lead Full-Stack Developer
@@ -11,7 +11,7 @@
 **GracePulse** is a lightweight, mobile-first Progressive Web Application (PWA) designed to manage and track a mortgage during its grace period, now featuring the **IndexGuard** module to account for the Construction Input Index (Madad Tesumot Habniya).
 
 - **Frontend (Client):**
-  - Single-file Progressive Web App (`index.html`) using HTML5, CSS3, and Vanilla JS.
+  - Progressive Web App decoupled into `index.html`, `css/style.css`, `js/app.js`, and `js/index_guard.js` using HTML5, CSS3, and Vanilla JS.
   - Mobile-first, RTL layout optimized for Hebrew with Rubik and Assistant fonts.
   - Fetches state via REST API, manages UI interactions, and displays dynamic dashboards, progress bars, and monthly ledgers.
 - **Backend (Serverless REST API):**
@@ -32,9 +32,9 @@ The database consists of five primary sheets, strictly emphasizing the append-on
    - **Immutability:** Once a month is locked (`Is_Locked = TRUE`), its `Grace_Deduction`, `Index_Delta`, and `End_Balance` are absolutely immutable. Recalculations strictly skip these rows.
 
 2. **Milestones (`Milestones`):**
-   - **Purpose:** Read-only schedule of contractor payments.
-   - **Key Columns:** Date, Amount, Track (Mishtana, Kavua, Prime), Status.
-   - **Usage:** Determines active drawn funds up to a given date for Grace calculations and remaining undrawn funds for IndexGuard calculations.
+   - **Purpose:** Schedule of contractor payments and strictly appended Index Linkage charges.
+   - **Key Columns:** Date, Amount, Track (Mishtana, Kavua, Prime, Index_Linkage_Charge), Status.
+   - **Usage:** Determines active drawn funds up to a given date (Base Principal + Linkage amounts) for Grace calculations and remaining undrawn funds for IndexGuard calculations.
 
 3. **Prime_Rates (`Prime_Rates`):**
    - **Purpose:** Append-only historical log of Prime Rate changes.
@@ -109,8 +109,11 @@ To ensure strict separation of concerns, maintainability, and modularity, the GA
   - **Role:** Encapsulates the financial logic for recalculating Grace period interest for unlocked months based on active drawn funds and varying interest rates.
 - **`index_guard.gs`**
   - **Role:** Houses the new IndexGuard module logic. Calculates the linkage penalty (Index_Delta) on the remaining undrawn contractor balance.
-- **`index.html`**
-  - **Role:** The frontend PWA containing HTML, CSS, and Vanilla JavaScript. Handles API requests, state management, and rendering of the Dashboard, Progress Tracks, and Monthly Ledger.
+- **Frontend Layer:**
+  - **`index.html`:** The main entry point, housing the structural layout.
+  - **`css/style.css`:** Centralized stylesheet controlling all UI/UX components.
+  - **`js/app.js`:** Handles general state management, main API calls, and core rendering loops.
+  - **`js/index_guard.js`:** Segregated frontend logic explicitly managing IndexGuard module views and isolated calculations.
 
 ---
 
@@ -120,7 +123,7 @@ To ensure strict separation of concerns, maintainability, and modularity, the GA
 The `grace_engine.gs` recalculates interest for all **unlocked** rows in the ledger sequentially:
 
 1. **State Injection:** For month $M_i$, the previous month's end balance is fetched: $E_{i-1}$. If $M_i$ is locked, skip entirely.
-2. **Active Drawn Assessment:** Calculate total drawn funds up to $M_i$ per track based on the `Milestones` sheet.
+2. **Active Drawn Assessment:** Calculate total drawn funds up to $M_i$ per track based on the `Milestones` sheet, ensuring that Active Drawn Funds explicitly equal the base Principal plus any injected `Index_Linkage_Charge` amounts.
 3. **Interest Calculation:**
    - Mishtana: $(Drawn_{Mishtana} \times Rate_{Mishtana}) / 12$
    - Kavua: $(Drawn_{Kavua} \times Rate_{Kavua}) / 12$
@@ -139,4 +142,4 @@ The `index_guard.gs` module calculates the impact of the Construction Input Inde
 3. **Linkage Formula:**
    $Linkage\_Multiplier_i = (Index_{Current} / Index_{Base}) - 1$
    $Index\_Delta\_Cost_i = Undrawn\_Balance_i \times Linkage\_Multiplier_i$
-4. **Integration into Ledger (Optional/Display):** While the Grace deduction affects the liquid balance directly, the `Index_Delta_Cost` represents the dynamic increase in the principal debt owed to the contractor. The system tracks this month-by-month to project the final required capital.
+4. **Integration into Principal:** The calculated `Index_Delta_Cost` fundamentally alters the active principal debt. It is structurally injected as a new, immutable row into the `Milestones` sheet (categorized under the `Index_Linkage_Charge` track/type), thereby directly increasing the drawn funds assessed by `grace_engine.gs` in subsequent calculations.
