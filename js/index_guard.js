@@ -2,17 +2,24 @@
 
 // Global state for IndexGuard
 let currentIgMonth = null;
+let currentIgLegalCharge = 0;
+let currentIgContractorCharge = 0;
 let currentIgDelta = 0;
 let currentIgIndex = 0;
 
 window.openIndexGuardSheet = function(monthStr) {
   currentIgMonth = monthStr;
+  currentIgLegalCharge = 0;
+  currentIgContractorCharge = 0;
   currentIgDelta = 0;
   currentIgIndex = 0;
 
-  // Clear inputs
+  // Clear input and reset display
   document.getElementById('ig-current-index').value = '';
-  document.getElementById('ig-result-display').textContent = '0 ₪';
+  document.getElementById('ig-legal-charge').textContent = '0 ₪';
+  document.getElementById('ig-contractor-charge').textContent = '0 ₪';
+  document.getElementById('ig-delta-display').textContent = '0 ₪';
+  document.getElementById('ig-delta-display').className = '';
   document.getElementById('btn-ig-approve').disabled = true;
 
   document.getElementById('index-guard-overlay').classList.remove('hidden');
@@ -30,7 +37,10 @@ window.calculateIndexGuardDelta = function() {
   const currentIndex = parseFloat(currentIndexInput);
 
   if (isNaN(currentIndex) || currentIndex <= 0) {
-    window.showToast('נא להזין מדד תקין', 'error');
+    document.getElementById('ig-legal-charge').textContent = '0 ₪';
+    document.getElementById('ig-contractor-charge').textContent = '0 ₪';
+    document.getElementById('ig-delta-display').textContent = '0 ₪';
+    document.getElementById('btn-ig-approve').disabled = true;
     return;
   }
 
@@ -39,17 +49,21 @@ window.calculateIndexGuardDelta = function() {
     return;
   }
 
-  const baseIndex = parseFloat(window.appState.settings['Base_Construction_Index']);
+  // Extract 4 settings from appState.settings
+  const baseConstructionIndex = parseFloat(window.appState.settings['Base_Construction_Index']);
+  const legalLinkageRate = parseFloat(window.appState.settings['Legal_Linkage_Rate']) || 1.0;
+  const contractorBaseIndex = parseFloat(window.appState.settings['Contractor_Base_Index']);
+  const contractorLinkageRate = parseFloat(window.appState.settings['Contractor_Linkage_Rate']) || 1.0;
   const totalContract = parseFloat(window.appState.settings['Total_Contract_Amount']);
 
-  if (isNaN(baseIndex) || isNaN(totalContract)) {
-    window.showToast('נתוני בסיס חסרים (מדד התחלתי או סך חוזה)', 'error');
+  if (isNaN(baseConstructionIndex) || isNaN(contractorBaseIndex) || isNaN(totalContract)) {
+    window.showToast('נתוני בסיס חסרים', 'error');
     return;
   }
 
-  // Calculate Undrawn Principal Only
+  // Calculate Undrawn Balance
   let totalDrawnPrincipalOnly = 0;
-  const today = new Date(currentIgMonth + '-01'); // Using the targeted month for context
+  const today = new Date(currentIgMonth + '-01');
 
   if (window.appState.milestones) {
     window.appState.milestones.forEach(m => {
@@ -62,27 +76,45 @@ window.calculateIndexGuardDelta = function() {
 
   const undrawnBalance = totalContract - totalDrawnPrincipalOnly;
 
+  // Calculate Legal Charge
   if (undrawnBalance <= 0) {
-    currentIgDelta = 0;
+    currentIgLegalCharge = 0;
+    currentIgContractorCharge = 0;
   } else {
-    // Formula: Undrawn_Balance * ((Current_Index / Base_Index) - 1)
-    currentIgDelta = undrawnBalance * ((currentIndex / baseIndex) - 1);
-    currentIgDelta = Math.max(0, currentIgDelta); // Prevent negative linkage
+    // Legal_Charge = Undrawn_Balance * ((Current_Index / Base_Construction_Index) - 1) * Legal_Linkage_Rate
+    currentIgLegalCharge = undrawnBalance * ((currentIndex / baseConstructionIndex) - 1) * legalLinkageRate;
+    currentIgLegalCharge = Math.max(0, currentIgLegalCharge);
+
+    // Contractor_Charge = Undrawn_Balance * ((Current_Index / Contractor_Base_Index) - 1) * Contractor_Linkage_Rate
+    currentIgContractorCharge = undrawnBalance * ((currentIndex / contractorBaseIndex) - 1) * contractorLinkageRate;
+    currentIgContractorCharge = Math.max(0, currentIgContractorCharge);
   }
 
+  // Calculate Delta = Contractor_Charge - Legal_Charge
+  currentIgDelta = currentIgContractorCharge - currentIgLegalCharge;
   currentIgIndex = currentIndex;
 
-  document.getElementById('ig-result-display').textContent = window.formatILS(currentIgDelta);
-  document.getElementById('btn-ig-approve').disabled = false;
+  // Update UI
+  document.getElementById('ig-legal-charge').textContent = window.formatILS(currentIgLegalCharge);
+  document.getElementById('ig-contractor-charge').textContent = window.formatILS(currentIgContractorCharge);
+  
+  const deltaDisplay = document.getElementById('ig-delta-display');
+  deltaDisplay.textContent = window.formatILS(Math.abs(currentIgDelta));
+  
+  // Color coding: Red if Delta > 0 (Contractor overcharging), Green if Delta <= 0
+  deltaDisplay.className = currentIgDelta > 0 ? 'ig-delta-positive' : 'ig-delta-negative';
+  
+  // Enable approve button only if there's a positive delta (contractor overcharging)
+  document.getElementById('btn-ig-approve').disabled = currentIgDelta <= 0;
 };
 
 window.approveIndexLinkage = async function() {
   if (currentIgDelta <= 0) {
-    window.showToast('אין תוספת הצמדה לאישור', 'error');
+    window.showToast('אין הפרש חיובי לאישור', 'error');
     return;
   }
 
-  if(!confirm(`האם לאשר תוספת הצמדה למדד בסך ${window.formatILS(currentIgDelta)}?`)) return;
+  if (!confirm(`האם לאשר הפרש הצמדה של ${window.formatILS(currentIgDelta)}?`)) return;
 
   window.showLoading(true);
   try {
@@ -90,10 +122,12 @@ window.approveIndexLinkage = async function() {
       action: "approveIndexLinkage",
       indexData: {
         current_index: currentIgIndex,
+        legal_charge: currentIgLegalCharge,
+        contractor_charge: currentIgContractorCharge,
         delta_amount: currentIgDelta,
         month: currentIgMonth
       },
-      // Keep backwards compatibility with the backend expecting flat parameters:
+      // Keep backwards compatibility with the backend
       date: currentIgMonth + "-01",
       amount: currentIgDelta
     };
@@ -113,7 +147,7 @@ window.approveIndexLinkage = async function() {
 
     window.appState = data;
     window.renderApp();
-    window.showToast("תוספת ההצמדה נשמרה בהצלחה");
+    window.showToast("הפרש ההצמדה נשמר בהצלחה");
     window.closeIndexGuardSheet();
   } catch (error) {
     console.error("Linkage approval failed:", error);

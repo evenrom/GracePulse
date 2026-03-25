@@ -5,26 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>GracePulse</title>
 
-  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;600;700&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
 
-  <!-- Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-  <!-- Stylesheet -->
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
-  <!-- Loading State -->
   <div id="loading-overlay">
     <div class="spinner"></div>
-    <div style="font-weight: 600; color: var(--primary);">טוען נתונים...</div>
+    <div style="font-weight: 600; color: var(--primary-light);">טוען נתונים...</div>
   </div>
 
-  <!-- Sticky Dashboard -->
   <header class="sticky-header">
     <div class="header-top">
       <h1><i class="fa-solid fa-house-chimney" style="margin-left: 0.5rem;"></i> GracePulse</h1>
@@ -50,47 +45,52 @@
 
   <main class="container">
 
-    <!-- Tracks Progress -->
     <h2 class="section-title">התקדמות מסלולים</h2>
     <div class="tracks-card" id="tracks-container">
-      <!-- Tracks injected here via JS -->
-    </div>
+      </div>
 
-    <!-- Monthly Ledger -->
     <h2 class="section-title">פירוט חודשי (גרייס)</h2>
     <div class="ledger-list" id="ledger-container">
-      <!-- Ledger cards injected here via JS -->
-    </div>
+      </div>
 
   </main>
 
-  <!-- Toast -->
   <div id="toast">הודעה...</div>
 
-  <!-- IndexGuard Bottom Sheet -->
   <div id="index-guard-overlay" class="bottom-sheet-overlay hidden" onclick="closeIndexGuardSheet()"></div>
   <div id="index-guard-sheet" class="bottom-sheet hidden">
     <div class="bottom-sheet-header">
       <div class="bottom-sheet-title"><i class="fa-solid fa-chart-line"></i> הצמדה למדד (IndexGuard)</div>
       <button class="close-btn" onclick="closeIndexGuardSheet()"><i class="fa-solid fa-times"></i></button>
     </div>
+    
     <div class="ig-input-group">
-      <label for="ig-current-index">הזן מדד נוכחי:</label>
-      <input type="number" id="ig-current-index" step="0.1" placeholder="לדוגמה: 131.2">
+      <label for="ig-current-index">המדד הנוכחי</label>
+      <input type="number" id="ig-current-index" step="0.1" placeholder="לדוגמה: 131.2" oninput="calculateIndexGuardDelta()">
     </div>
-    <button class="btn-ig-calc" onclick="calculateIndexGuardDelta()">
-      <i class="fa-solid fa-calculator"></i> חשב הפרש מדד
-    </button>
-    <div class="ig-result-box">
-      <div style="font-size: 0.85rem; color: var(--text-muted); text-align: center; margin-bottom: 0.25rem;">עלות תוספת למשכנתא:</div>
-      <div class="ig-result-val" id="ig-result-display">0 ₪</div>
+
+    <div class="ig-comparison-table">
+      <div class="ig-table-row">
+        <span class="ig-table-label">עלות משכנתא חוקית</span>
+        <span class="ig-table-value" id="ig-legal-charge">0 ₪</span>
+      </div>
+      <div class="ig-table-row">
+        <span class="ig-table-label">עלות משכנתא קבלן</span>
+        <span class="ig-table-value" id="ig-contractor-charge">0 ₪</span>
+      </div>
+      <div class="ig-table-row ig-delta-row">
+        <div>
+          <div class="ig-delta-label">הפרש (Contractor - Legal)</div>
+          <div class="ig-delta-value" id="ig-delta-display">0 ₪</div>
+        </div>
+      </div>
     </div>
+
     <button class="btn-ig-approve" id="btn-ig-approve" onclick="approveIndexLinkage()" disabled>
       <i class="fa-solid fa-check"></i> אשר והוסף לחוב
     </button>
   </div>
 
-  <!-- Scripts -->
   <script src="js/app.js"></script>
   <script src="js/index_guard.js"></script>
 </body>
