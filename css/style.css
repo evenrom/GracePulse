@@ -1,33 +1,29 @@
-/* css/style.css - Glassmorphism Deep Theme */
-
-/* CSS Variables & Reset */
+/* CSS Variables & Reset - Premium Dark FinTech Theme */
 :root {
-  --primary: #10b981;
-  --primary-light: #06b6d4;
-  --success: #10b981;
-  --danger: #ef4444;
-  --warning: #ef4444;
-  --accent-cyan: #06b6d4;
-  --bg-color: linear-gradient(135deg, #0f172a 0%, #0d9488 100%);
-  --card-bg: rgba(255, 255, 255, 0.08);
-  --text-main: #ffffff;
-  --text-muted: #e0e7ff;
-  --border-color: rgba(255, 255, 255, 0.15);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
-  --shadow-md: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-  --glass-blur: 16px;
+  --primary: #2563eb;         /* Royal Blue - סולידי ואמין */
+  --primary-light: #3b82f6; 
+  --success: #059669;         /* Elegant Emerald - ירוק כהה ורגוע */
+  --danger: #dc2626;          /* Deep Crimson - אדום עמוק ולא צועק */
+  --warning: #d97706;
+  --accent-cyan: #0284c7;     /* Ocean Blue במקום תכלת זורח */
+  --bg-gradient: linear-gradient(135deg, #070b14 0%, #0f1c2e 100%); /* רקע כהה מאוד, כמעט שחור-כחול */
+  --card-bg: rgba(255, 255, 255, 0.04); /* שקיפות עדינה יותר, פחות "לבן" */
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --border-color: rgba(255, 255, 255, 0.08); /* גבולות כמעט בלתי נראים */
+  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 10px 30px -5px rgba(0, 0, 0, 0.5); /* הצללה שחורה לעומק, לא צבעונית */
+  --glass-blur: 20px;
 
   --font-heading: 'Rubik', sans-serif;
   --font-body: 'Assistant', sans-serif;
 }
 
-* { margin: 0; padding: 0; box-sizing: border-box; }
-
 body {
   font-family: var(--font-body);
-  background: linear-gradient(135deg, #0f172a 0%, #0d9488 100%);
+  background: var(--bg-gradient);
   background-attachment: fixed;
-  color: #ffffff;
+  color: var(--text-main);
   line-height: 1.5;
   padding-bottom: 80px;
   min-height: 100vh;
@@ -224,7 +220,7 @@ h1, h2, h3, h4, .font-heading { font-family: var(--font-heading); }
   justify-content: center;
   align-items: center;
   gap: 0.5rem;
-  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+  box-shadow: var(--shadow-sm);
   transition: all 0.2s;
 }
 
@@ -246,7 +242,7 @@ h1, h2, h3, h4, .font-heading { font-family: var(--font-heading); }
   justify-content: center;
   align-items: center;
   gap: 0.5rem;
-  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.4);
+  box-shadow: var(--shadow-sm);
   transition: all 0.2s;
 }
 
@@ -403,7 +399,7 @@ h1, h2, h3, h4, .font-heading { font-family: var(--font-heading); }
   width: 100%;
   cursor: pointer;
   margin-bottom: 1.25rem;
-  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.4);
+  box-shadow: var(--shadow-sm);
   transition: all 0.2s;
   font-family: var(--font-heading);
 }
@@ -459,7 +455,7 @@ h1, h2, h3, h4, .font-heading { font-family: var(--font-heading); }
   font-weight: 600;
   width: 100%;
   cursor: pointer;
-  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+  box-shadow: var(--shadow-sm);
   transition: all 0.2s;
   font-family: var(--font-heading);
 }
