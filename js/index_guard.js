@@ -14,7 +14,20 @@ window.openIndexGuardSheet = function(monthStr) {
   currentIgDelta = 0;
   currentIgIndex = 0;
 
-  // Clear input and reset display
+  // Auto-detect principal for the selected month from Milestones
+  let defaultPrincipal = '';
+  if (window.appState && window.appState.milestones) {
+    const [year, month] = monthStr.split('-');
+    const milestone = window.appState.milestones.find(m => {
+      if (!m.Date || String(m.Track) === 'Index_Linkage_Charge') return false;
+      const d = new Date(m.Date);
+      return d.getFullYear() === parseInt(year) && (d.getMonth() + 1) === parseInt(month);
+    });
+    if (milestone) defaultPrincipal = milestone.Amount;
+  }
+
+  // Reset inputs and display
+  document.getElementById('ig-principal-amount').value = defaultPrincipal;
   document.getElementById('ig-current-index').value = '';
   document.getElementById('ig-legal-charge').textContent = '0 ₪';
   document.getElementById('ig-contractor-charge').textContent = '0 ₪';
@@ -34,9 +47,12 @@ window.closeIndexGuardSheet = function() {
 
 window.calculateIndexGuardDelta = function() {
   const currentIndexInput = document.getElementById('ig-current-index').value;
+  const principalInput = document.getElementById('ig-principal-amount').value;
+  
   const currentIndex = parseFloat(currentIndexInput);
+  const principal = parseFloat(principalInput);
 
-  if (isNaN(currentIndex) || currentIndex <= 0) {
+  if (isNaN(currentIndex) || currentIndex <= 0 || isNaN(principal) || principal <= 0) {
     document.getElementById('ig-legal-charge').textContent = '0 ₪';
     document.getElementById('ig-contractor-charge').textContent = '0 ₪';
     document.getElementById('ig-delta-display').textContent = '0 ₪';
@@ -49,46 +65,24 @@ window.calculateIndexGuardDelta = function() {
     return;
   }
 
-  // Extract 4 settings from appState.settings
+  // Extract settings from appState.settings
   const baseConstructionIndex = parseFloat(window.appState.settings['Base_Construction_Index']);
   const legalLinkageRate = parseFloat(window.appState.settings['Legal_Linkage_Rate']) || 1.0;
   const contractorBaseIndex = parseFloat(window.appState.settings['Contractor_Base_Index']);
   const contractorLinkageRate = parseFloat(window.appState.settings['Contractor_Linkage_Rate']) || 1.0;
-  const totalContract = parseFloat(window.appState.settings['Total_Contract_Amount']);
 
-  if (isNaN(baseConstructionIndex) || isNaN(contractorBaseIndex) || isNaN(totalContract)) {
+  if (isNaN(baseConstructionIndex) || isNaN(contractorBaseIndex)) {
     window.showToast('נתוני בסיס חסרים', 'error');
     return;
   }
 
-  // Calculate Undrawn Balance
-  let totalDrawnPrincipalOnly = 0;
-  const today = new Date(currentIgMonth + '-01');
+  // Legal_Charge = Principal * ((Current_Index / Base_Construction_Index) - 1) * Legal_Linkage_Rate
+  currentIgLegalCharge = principal * ((currentIndex / baseConstructionIndex) - 1) * legalLinkageRate;
+  currentIgLegalCharge = Math.max(0, currentIgLegalCharge);
 
-  if (window.appState.milestones) {
-    window.appState.milestones.forEach(m => {
-      let mDate = new Date(m.Date);
-      if (mDate <= today && String(m.Track) !== 'Index_Linkage_Charge') {
-        totalDrawnPrincipalOnly += parseFloat(m.Amount) || 0;
-      }
-    });
-  }
-
-  const undrawnBalance = totalContract - totalDrawnPrincipalOnly;
-
-  // Calculate Legal Charge
-  if (undrawnBalance <= 0) {
-    currentIgLegalCharge = 0;
-    currentIgContractorCharge = 0;
-  } else {
-    // Legal_Charge = Undrawn_Balance * ((Current_Index / Base_Construction_Index) - 1) * Legal_Linkage_Rate
-    currentIgLegalCharge = undrawnBalance * ((currentIndex / baseConstructionIndex) - 1) * legalLinkageRate;
-    currentIgLegalCharge = Math.max(0, currentIgLegalCharge);
-
-    // Contractor_Charge = Undrawn_Balance * ((Current_Index / Contractor_Base_Index) - 1) * Contractor_Linkage_Rate
-    currentIgContractorCharge = undrawnBalance * ((currentIndex / contractorBaseIndex) - 1) * contractorLinkageRate;
-    currentIgContractorCharge = Math.max(0, currentIgContractorCharge);
-  }
+  // Contractor_Charge = Principal * ((Current_Index / Contractor_Base_Index) - 1) * Contractor_Linkage_Rate
+  currentIgContractorCharge = principal * ((currentIndex / contractorBaseIndex) - 1) * contractorLinkageRate;
+  currentIgContractorCharge = Math.max(0, currentIgContractorCharge);
 
   // Calculate Delta = Contractor_Charge - Legal_Charge
   currentIgDelta = currentIgContractorCharge - currentIgLegalCharge;
@@ -127,7 +121,6 @@ window.approveIndexLinkage = async function() {
         delta_amount: currentIgDelta,
         month: currentIgMonth
       },
-      // Keep backwards compatibility with the backend
       date: currentIgMonth + "-01",
       amount: currentIgDelta
     };
