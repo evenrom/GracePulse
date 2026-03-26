@@ -173,25 +173,33 @@ window.renderApp = function() {
   const state = window.appState;
 
   // 1. Dashboard Aggregates
-  document.getElementById('liquid-balance').textContent = formatILS(state.aggregates.liquidBalance);
-  document.getElementById('remaining-contractor').textContent = formatILS(state.aggregates.totalRemainingToContractor);
-  document.getElementById('current-prime').textContent = state.aggregates.currentPrimeRate;
+      document.getElementById('liquid-balance').textContent = formatILS(appState.aggregates.liquidBalance);
+      document.getElementById('remaining-contractor').textContent = formatILS(appState.aggregates.totalRemainingToContractor);
+      
+      // --- STRICT DB REFLECTION: Prime Rate ---
+      let displayPrime = '--';
+      if (appState.primeRates && appState.primeRates.length > 0) {
+        // שולף את השורה האחרונה מטבלת הפריים
+        const lastPrimeRow = appState.primeRates[appState.primeRates.length - 1];
+        // שולף בביטחון את הערך מהעמודה השנייה (הריבית), לא משנה איך קוראים לכותרת
+        displayPrime = lastPrimeRow.Prime_Rate || Object.values(lastPrimeRow)[1] || '--';
+      }
+      document.getElementById('current-prime').textContent = displayPrime;
 
-  // Calculate and display Projected Final Balance
-  const projectedFinalEl = document.getElementById('projected-final');
-  if (state.ledger && state.ledger.length > 0) {
-    const lastRow = state.ledger[state.ledger.length - 1];
-    const finalBalance = parseFloat(lastRow.End_Balance) || 0;
-    projectedFinalEl.textContent = formatILS(finalBalance);
+      // --- Projected Final Balance (Text Color Only) ---
+      const projectedFinalEl = document.getElementById('projected-final');
+      if (appState.ledger && appState.ledger.length > 0) {
+        const lastRow = appState.ledger[appState.ledger.length - 1];
+        const finalBalance = parseFloat(lastRow.End_Balance) || 0;
 
-    if (finalBalance < 0) {
-      projectedFinalEl.innerHTML = `<span style="background-color: var(--danger); color: white; padding: 2px 8px; border-radius: 12px; display: inline-block; box-shadow: var(--shadow-sm);">${formatILS(finalBalance)}</span>`;
-    } else if (finalBalance > 0) {
-      projectedFinalEl.innerHTML = `<span style="background-color: var(--success); color: white; padding: 2px 8px; border-radius: 12px; display: inline-block; box-shadow: var(--shadow-sm);">${formatILS(finalBalance)}</span>`;
-    } else {
-      projectedFinalEl.textContent = formatILS(finalBalance);
-    }
-  }
+        if (finalBalance < 0) {
+          projectedFinalEl.innerHTML = `<span style="color: var(--danger); font-weight: 700; text-shadow: 0 0 10px rgba(220, 38, 38, 0.4);">${formatILS(finalBalance)}</span>`;
+        } else if (finalBalance > 0) {
+          projectedFinalEl.innerHTML = `<span style="color: var(--success); font-weight: 700; text-shadow: 0 0 10px rgba(5, 150, 105, 0.4);">${formatILS(finalBalance)}</span>`;
+        } else {
+          projectedFinalEl.textContent = formatILS(finalBalance);
+        }
+      }
 
   // 2. Tracks Progress
   const drawn = calculateActiveDrawnForBars();
