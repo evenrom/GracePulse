@@ -123,7 +123,7 @@ window.approveIndexLinkage = async function() {
         delta_amount: currentIgDelta,
         month: currentIgMonth
       },
-      date: currentIgMonth + "-01",
+      date: `01/${currentIgMonth.split('-')[1]}/${currentIgMonth.split('-')[0]}`,
       // CRITICAL FIX: Sending the Contractor Charge to the DB, not the Delta!
       amount: currentIgContractorCharge 
     };
