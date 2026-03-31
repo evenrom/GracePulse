@@ -98,17 +98,19 @@ window.calculateIndexGuardDelta = function() {
   // Color coding: Red if Delta > 0 (Contractor overcharging), Green if Delta <= 0
   deltaDisplay.className = currentIgDelta > 0 ? 'ig-delta-positive' : 'ig-delta-negative';
   
-  // Enable approve button only if there's a positive delta (contractor overcharging)
-  document.getElementById('btn-ig-approve').disabled = currentIgDelta <= 0;
+  // FIX: Enable approve button as long as there is a valid contractor charge to add to the mortgage!
+  document.getElementById('btn-ig-approve').disabled = currentIgContractorCharge <= 0;
 };
 
 window.approveIndexLinkage = async function() {
-  if (currentIgDelta <= 0) {
-    window.showToast('אין הפרש חיובי לאישור', 'error');
+  // FIX: We check if there's an actual charge, not just a positive delta
+  if (currentIgContractorCharge <= 0) {
+    window.showToast('אין סכום הצמדה חיובי לאישור', 'error');
     return;
   }
 
-  if (!confirm(`האם לאשר הפרש הצמדה של ${window.formatILS(currentIgDelta)}?`)) return;
+  // FIX: Prompt the user with the actual amount being added to the mortgage
+  if (!confirm(`האם לאשר ולהוסיף חוב הצמדה בסך ${window.formatILS(currentIgContractorCharge)} למשכנתא שלך?`)) return;
 
   window.showLoading(true);
   try {
@@ -122,7 +124,8 @@ window.approveIndexLinkage = async function() {
         month: currentIgMonth
       },
       date: currentIgMonth + "-01",
-      amount: currentIgDelta
+      // CRITICAL FIX: Sending the Contractor Charge to the DB, not the Delta!
+      amount: currentIgContractorCharge 
     };
 
     const response = await fetch(API_URL, {
