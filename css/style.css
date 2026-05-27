@@ -6,14 +6,14 @@
   --danger: #dc2626;          /* Deep Crimson - אדום עמוק ולא צועק */
   --warning: #d97706;
   --accent-cyan: #0284c7;     /* Ocean Blue במקום תכלת זורח */
-  --bg-gradient: linear-gradient(135deg, #070b14 0%, #0f1c2e 100%); /* רקע כהה מאוד, כמעט שחור-כחול */
-  --card-bg: rgba(255, 255, 255, 0.04); /* שקיפות עדינה יותר, פחות "לבן" */
+  --bg-gradient: linear-gradient(135deg, #0b0f19 0%, #111827 100%); /* רקע כהה מאוד, כמעט שחור-כחול */
+  --card-bg: #1f2937; /* שקיפות עדינה יותר, פחות "לבן" */
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
-  --border-color: rgba(255, 255, 255, 0.08); /* גבולות כמעט בלתי נראים */
+  --border-color: rgba(255, 255, 255, 0.05); /* גבולות כמעט בלתי נראים */
   --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 10px 30px -5px rgba(0, 0, 0, 0.5); /* הצללה שחורה לעומק, לא צבעונית */
-  --glass-blur: 20px;
+  --glass-blur: 0px;
 
   --font-heading: 'Rubik', sans-serif;
   --font-body: 'Assistant', sans-serif;
@@ -122,19 +122,17 @@ h1, h2, h3, h4, .font-heading { font-family: var(--font-heading); }
 .ledger-list { display: flex; flex-direction: column; gap: 1rem; }
 
 .ledger-card {
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+  background: #1f2937;
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 12px;
   overflow: hidden;
-  transition: box-shadow 0.2s, border-color 0.2s;
+  transition: box-shadow 0.2s, border-color 0.2s, background-color 0.2s;
 }
 
-.ledger-card.locked { border-right: 4px solid #10b981; }
+.ledger-card.locked { background: #111827; }
 .ledger-card.active {
-  border-right: 4px solid #06b6d4;
-  box-shadow: 0 8px 32px 0 rgba(6, 182, 212, 0.4);
+  border: 1px solid #3b82f6;
+  background: #374151;
 }
 
 .card-header {
@@ -206,7 +204,7 @@ h1, h2, h3, h4, .font-heading { font-family: var(--font-heading); }
 }
 
 .btn-approve {
-  background: #10b981;
+  background: var(--success);
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -220,15 +218,14 @@ h1, h2, h3, h4, .font-heading { font-family: var(--font-heading); }
   justify-content: center;
   align-items: center;
   gap: 0.5rem;
-  box-shadow: var(--shadow-sm);
   transition: all 0.2s;
 }
 
-.btn-approve:active { background: #059669; transform: translateY(1px); }
+.btn-approve:active { background: #047857; }
 .btn-approve:disabled { background: rgba(255, 255, 255, 0.2); cursor: not-allowed; box-shadow: none; }
 
 .btn-save {
-  background: #06b6d4;
+  background: var(--accent-cyan);
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -242,18 +239,17 @@ h1, h2, h3, h4, .font-heading { font-family: var(--font-heading); }
   justify-content: center;
   align-items: center;
   gap: 0.5rem;
-  box-shadow: var(--shadow-sm);
   transition: all 0.2s;
 }
 
-.btn-save:active { background: #0891b2; transform: translateY(1px); }
+.btn-save:active { background: #0369a1; }
 
 .input-edit {
   width: 100px;
   padding: 0.25rem 0.5rem;
-  background: rgba(0, 0, 0, 0.2);
+  background: #0b0f19;
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid #4b5563;
   border-radius: 4px;
   font-family: var(--font-body);
   font-size: 0.9rem;
@@ -297,12 +293,9 @@ h1, h2, h3, h4, .font-heading { font-family: var(--font-heading); }
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-top: 2px solid rgba(255, 255, 255, 0.15);
+  background: #1f2937;
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-bottom: none;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
   border-top-left-radius: 16px;
   border-top-right-radius: 16px;
   padding: 1.5rem;
@@ -321,9 +314,8 @@ h1, h2, h3, h4, .font-heading { font-family: var(--font-heading); }
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(11, 15, 25, 0.8);
   z-index: 899;
-  backdrop-filter: blur(4px);
 }
 
 .bottom-sheet-overlay.hidden { display: none; }
@@ -370,9 +362,9 @@ h1, h2, h3, h4, .font-heading { font-family: var(--font-heading); }
 .ig-input-group input {
   width: 100%;
   padding: 0.75rem;
-  background: rgba(0, 0, 0, 0.2);
+  background: #0b0f19;
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid #4b5563;
   border-radius: 8px;
   font-size: 1rem;
   transition: all 0.2s;
@@ -385,12 +377,11 @@ h1, h2, h3, h4, .font-heading { font-family: var(--font-heading); }
 .ig-input-group input:focus {
   outline: none;
   border-color: #06b6d4;
-  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.3);
   background: rgba(0, 0, 0, 0.3);
 }
 
 .btn-ig-calc {
-  background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
+  background: var(--primary);
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -399,13 +390,12 @@ h1, h2, h3, h4, .font-heading { font-family: var(--font-heading); }
   width: 100%;
   cursor: pointer;
   margin-bottom: 1.25rem;
-  box-shadow: var(--shadow-sm);
   transition: all 0.2s;
   font-family: var(--font-heading);
 }
 
-.btn-ig-calc:active { transform: translateY(1px); }
-.btn-ig-calc:hover { box-shadow: 0 6px 20px rgba(6, 182, 212, 0.5); }
+.btn-ig-calc:active { background: var(--primary-light); }
+.btn-ig-calc:hover { box-shadow: none; }
 
 /* IndexGuard Comparison Table */
 .ig-comparison-table {
@@ -447,7 +437,7 @@ h1, h2, h3, h4, .font-heading { font-family: var(--font-heading); }
 .ig-delta-negative { color: #10b981; }
 
 .btn-ig-approve {
-  background: #10b981;
+  background: var(--success);
   color: white;
   border: none;
   padding: 0.75rem 1.5rem;
@@ -455,15 +445,17 @@ h1, h2, h3, h4, .font-heading { font-family: var(--font-heading); }
   font-weight: 600;
   width: 100%;
   cursor: pointer;
-  box-shadow: var(--shadow-sm);
   transition: all 0.2s;
   font-family: var(--font-heading);
 }
 
-.btn-ig-approve:active { transform: translateY(1px); }
-.btn-ig-approve:hover { box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5); }
+.btn-ig-approve:active { background: #047857; }
+.btn-ig-approve:hover { box-shadow: none; }
 .btn-ig-approve:disabled {
   background: rgba(255, 255, 255, 0.2);
   cursor: not-allowed;
   box-shadow: none;
 }
+
+/* Override inline text-shadows from JS */
+#projected-final span, .sticky-header *, .ledger-card * { text-shadow: none !important; }
