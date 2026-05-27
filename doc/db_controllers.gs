@@ -10,6 +10,9 @@ function getSpreadsheet() {
 function getState() {
   const ss = getSpreadsheet();
 
+  // THE FIX: Force recalculation on every app load to sync manual DB edits
+  recalculateGrace(ss);
+
   // Read Sheets
   const ledgerData = _readSheet(ss, 'Monthly_Ledger');
   const milestonesData = _readSheet(ss, 'Milestones');
@@ -82,16 +85,25 @@ function lockMonth(monthStr) {
 
     if (monthIndex === -1 || lockedIndex === -1) throw new Error("Missing Month or Is_Locked columns in Ledger.");
 
+    // Smart Date Parser for matching
+    let targetDate = new Date(monthStr);
+    if (isNaN(targetDate.getTime())) targetDate = new Date(String(monthStr).trim() + '-01');
+    let targetYear = targetDate.getFullYear();
+    let targetMonth = targetDate.getMonth();
+
     let found = false;
     for (let i = 1; i < data.length; i++) {
       let rowMonth = data[i][monthIndex];
-      if (rowMonth instanceof Date) {
-        rowMonth = rowMonth.toISOString().slice(0, 7);
-      } else {
-        rowMonth = String(rowMonth).trim();
-      }
-
-      if (rowMonth === monthStr) {
+      let rowDate = new Date(rowMonth);
+      
+      if (!isNaN(rowDate.getTime())) {
+        // Compare by actual Year and Month, ignoring timezones
+        if (rowDate.getFullYear() === targetYear && rowDate.getMonth() === targetMonth) {
+          sheet.getRange(i + 1, lockedIndex + 1).setValue(true);
+          found = true;
+          break;
+        }
+      } else if (String(rowMonth).trim() === String(monthStr).trim()) {
         sheet.getRange(i + 1, lockedIndex + 1).setValue(true);
         found = true;
         break;
@@ -118,16 +130,26 @@ function updateInflows(monthStr, rom, yael, deposit) {
 
     if (monthIndex === -1) throw new Error("Missing Month column.");
 
+    // Smart Date Parser for matching
+    let targetDate = new Date(monthStr);
+    if (isNaN(targetDate.getTime())) targetDate = new Date(String(monthStr).trim() + '-01');
+    let targetYear = targetDate.getFullYear();
+    let targetMonth = targetDate.getMonth();
+
     let found = false;
     for (let i = 1; i < data.length; i++) {
       let rowMonth = data[i][monthIndex];
-      if (rowMonth instanceof Date) {
-        rowMonth = rowMonth.toISOString().slice(0, 7);
-      } else {
-        rowMonth = String(rowMonth).trim();
-      }
+      let rowDate = new Date(rowMonth);
 
-      if (rowMonth === monthStr) {
+      if (!isNaN(rowDate.getTime())) {
+        if (rowDate.getFullYear() === targetYear && rowDate.getMonth() === targetMonth) {
+          if (romIdx !== -1) sheet.getRange(i + 1, romIdx + 1).setValue(rom);
+          if (yaelIdx !== -1) sheet.getRange(i + 1, yaelIdx + 1).setValue(yael);
+          if (depIdx !== -1) sheet.getRange(i + 1, depIdx + 1).setValue(deposit);
+          found = true;
+          break;
+        }
+      } else if (String(rowMonth).trim() === String(monthStr).trim()) {
         if (romIdx !== -1) sheet.getRange(i + 1, romIdx + 1).setValue(rom);
         if (yaelIdx !== -1) sheet.getRange(i + 1, yaelIdx + 1).setValue(yael);
         if (depIdx !== -1) sheet.getRange(i + 1, depIdx + 1).setValue(deposit);
