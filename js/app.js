@@ -37,6 +37,51 @@ window.showToast = (message, type = 'success') => {
   setTimeout(() => { toast.className = toast.className.replace('show', '').trim(); }, 3000);
 };
 
+window.openPrimeRateSheet = function() {
+  const current = document.getElementById('current-prime').textContent;
+  document.getElementById('prime-rate-input').value = current === '--' ? '' : current;
+  document.getElementById('prime-effective-date').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('prime-rate-overlay').classList.remove('hidden');
+  document.getElementById('prime-rate-sheet').classList.remove('hidden');
+  document.getElementById('prime-rate-input').focus();
+};
+
+window.closePrimeRateSheet = function() {
+  document.getElementById('prime-rate-overlay').classList.add('hidden');
+  document.getElementById('prime-rate-sheet').classList.add('hidden');
+};
+
+window.savePrimeRate = async function(event) {
+  event.preventDefault();
+  const rate = Number(document.getElementById('prime-rate-input').value);
+  const date = document.getElementById('prime-effective-date').value;
+  if (!Number.isFinite(rate) || rate < 0 || rate > 30 || !date) {
+    showToast('יש להזין ריבית ותאריך תקינים', 'error');
+    return;
+  }
+  if (!confirm(`לשמור ריבית פריים של ${rate}% החל מ-${date}?`)) return;
+  showLoading(true);
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'addPrimeRate', date, rate }),
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+    });
+    if (!response.ok) throw new Error('Network request failed');
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    window.appState = data;
+    renderApp();
+    closePrimeRateSheet();
+    showToast('הריבית נשמרה והתחזית עודכנה');
+  } catch (error) {
+    console.error('Prime rate update failed:', error);
+    showToast(`שגיאה בעדכון הריבית: ${error.message}`, 'error');
+  } finally {
+    showLoading(false);
+  }
+};
+
 // Initialize App
 async function initApp() {
   try {
