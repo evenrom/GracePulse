@@ -68,9 +68,13 @@ function recalculateGrace(ss) {
 
     let prevEndBalance = i > 1 ? (parseFloat(ledgerData[i - 1][idx.End_Balance]) || 0) : 0;
 
-    let rom = parseFloat(ledgerData[i][idx.Rom_Actual]) > 0 ? parseFloat(ledgerData[i][idx.Rom_Actual]) : (parseFloat(ledgerData[i][idx.Rom_Planned]) || 0);
-    let yael = parseFloat(ledgerData[i][idx.Yael_Actual]) > 0 ? parseFloat(ledgerData[i][idx.Yael_Actual]) : (parseFloat(ledgerData[i][idx.Yael_Planned]) || 0);
-    let deposit = parseFloat(ledgerData[i][idx.Deposit_Actual]) > 0 ? parseFloat(ledgerData[i][idx.Deposit_Actual]) : (parseFloat(ledgerData[i][idx.Deposit_Planned]) || 0);
+    const actualOrPlanned = (actual, planned) => {
+      const hasActual = actual !== '' && actual !== null && actual !== undefined;
+      return hasActual ? (parseFloat(actual) || 0) : (parseFloat(planned) || 0);
+    };
+    let rom = actualOrPlanned(ledgerData[i][idx.Rom_Actual], ledgerData[i][idx.Rom_Planned]);
+    let yael = actualOrPlanned(ledgerData[i][idx.Yael_Actual], ledgerData[i][idx.Yael_Planned]);
+    let deposit = actualOrPlanned(ledgerData[i][idx.Deposit_Actual], ledgerData[i][idx.Deposit_Planned]);
     
     let totalInflow = rom + yael + deposit;
     let graceDeduction = 0;

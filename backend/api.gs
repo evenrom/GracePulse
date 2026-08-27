@@ -46,24 +46,25 @@ function doPost(e) {
         const yael = parseFloat(postData.yael) || 0;
         const deposit = parseFloat(postData.deposit) || 0;
         if (!monthUpdate) throw new Error("Missing 'month' parameter.");
+        if (rom < 0 || yael < 0 || deposit < 0) throw new Error("Inflows cannot be negative.");
         return buildJsonResponse(updateInflows(monthUpdate, rom, yael, deposit));
 
       case 'addPrimeRate':
         const datePrime = String(postData.date || '');
         const rate = parseFloat(postData.rate);
-        if (!datePrime || isNaN(rate)) throw new Error("Missing or invalid 'date' or 'rate' parameters.");
+        if (!datePrime || isNaN(rate) || rate < 0 || rate > 30) throw new Error("Missing or invalid 'date' or 'rate' parameters.");
         return buildJsonResponse(addPrimeRate(datePrime, rate));
 
       case 'addConstructionIndex':
         const dateIndex = String(postData.date || '');
         const indexValue = parseFloat(postData.indexValue);
-        if (!dateIndex || isNaN(indexValue)) throw new Error("Missing or invalid 'date' or 'indexValue' parameters.");
+        if (!dateIndex || isNaN(indexValue) || indexValue <= 0) throw new Error("Missing or invalid 'date' or 'indexValue' parameters.");
         return buildJsonResponse(addConstructionIndex(dateIndex, indexValue));
 
       case 'approveIndexLinkage':
         const dateLinkage = String(postData.date || '');
         const amount = parseFloat(postData.amount);
-        if (!dateLinkage || isNaN(amount)) throw new Error("Missing or invalid 'date' or 'amount' parameters.");
+        if (!dateLinkage || isNaN(amount) || amount <= 0) throw new Error("Missing or invalid 'date' or 'amount' parameters.");
         return buildJsonResponse(appendIndexLinkage(dateLinkage, amount));
 
       default:

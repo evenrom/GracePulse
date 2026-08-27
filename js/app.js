@@ -21,6 +21,9 @@ window.formatILS = (num) => {
 
 // Utility: Parse boolean from string/bool
 window.isTrue = (val) => val === true || String(val).toUpperCase() === 'TRUE';
+window.escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, char => ({
+  '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+}[char]));
 
 // UI Utilities
 window.showLoading = (show) => {
@@ -160,7 +163,7 @@ window.calculateActiveDrawnForBars = function() {
       else if (track.includes('kavua')) drawn.Kavua += amount;
       else if (track.includes('prime')) drawn.Prime += amount;
       // Index linkage charge is dynamically added to the Kavua principal
-      else if (track.includes('index_linkage_charge')) drawn.Kavua += amount;
+      else if (track.includes('index_linkage_charge')) drawn.Mishtana += amount;
     }
   });
   return drawn;
@@ -177,13 +180,15 @@ window.renderApp = function() {
       document.getElementById('remaining-contractor').textContent = formatILS(appState.aggregates.totalRemainingToContractor);
       
       // --- STRICT DB REFLECTION: Prime Rate ---
-      let displayPrime = '--';
-      if (appState.primeRates && appState.primeRates.length > 0) {
-        // שולף את השורה האחרונה מטבלת הפריים
-        const lastPrimeRow = appState.primeRates[appState.primeRates.length - 1];
-        // שולף בביטחון את הערך מהעמודה השנייה (הריבית), לא משנה איך קוראים לכותרת
-        displayPrime = lastPrimeRow.Prime_Rate || Object.values(lastPrimeRow)[1] || '--';
-      }
+      const aggregatePrime = Number(appState.aggregates.currentPrimeRate);
+      const primeFromRows = (appState.primeRates || []).reduce((latest, row) => {
+        const values = Object.values(row);
+        const rate = Number(row.Prime_Rate ?? row.Prime_Rate_Value ?? row.Rate ?? values[1]);
+        const date = new Date(row.Effective_Date ?? row.Date ?? values[0]);
+        return Number.isFinite(rate) && (!latest || isNaN(date) || date <= new Date()) ? rate : latest;
+      }, 0);
+      const currentPrime = aggregatePrime > 0 ? aggregatePrime : primeFromRows;
+      const displayPrime = currentPrime > 0 ? currentPrime.toFixed(2).replace(/\.00$/, '') : '--';
       document.getElementById('current-prime').textContent = displayPrime;
 
       // --- Projected Final Balance (Text Color Only) ---
@@ -193,10 +198,13 @@ window.renderApp = function() {
         const finalBalance = parseFloat(lastRow.End_Balance) || 0;
 
         if (finalBalance < 0) {
-          projectedFinalEl.innerHTML = `<span style="color: var(--danger); font-weight: 700; text-shadow: 0 0 10px rgba(220, 38, 38, 0.4);">${formatILS(finalBalance)}</span>`;
+          projectedFinalEl.className = 'text-danger';
+          projectedFinalEl.textContent = formatILS(finalBalance);
         } else if (finalBalance > 0) {
-          projectedFinalEl.innerHTML = `<span style="color: var(--success); font-weight: 700; text-shadow: 0 0 10px rgba(5, 150, 105, 0.4);">${formatILS(finalBalance)}</span>`;
+          projectedFinalEl.className = 'text-success';
+          projectedFinalEl.textContent = formatILS(finalBalance);
         } else {
+          projectedFinalEl.className = '';
           projectedFinalEl.textContent = formatILS(finalBalance);
         }
       }
@@ -243,7 +251,7 @@ window.renderApp = function() {
     const isActive = index === activeMonthIndex;
 
     // Format Month
-    let displayMonth = row.Month;
+    let displayMonth = escapeHtml(row.Month);
     try {
       const d = new Date(row.Month);
       if(!isNaN(d.getTime())) {
@@ -262,13 +270,14 @@ window.renderApp = function() {
         return `<span class="val-actual">0 ₪</span>`;
       } else {
         const val = hasActual ? actNum : planNum;
-        return `<input type="number" id="input-${type}-${idx}" class="input-edit" value="${val}" step="0.01">`;
+        return `<input type="number" id="input-${type}-${idx}" class="input-edit" value="${val}" min="0" step="0.01" inputmode="decimal">`;
       }
     };
 
-    const romHtml = getValHtml(row.Rom_Actual || row.Actual_Rom, row.Rom_Planned || row.Planned_Rom, 'rom', locked, index);
-    const yaelHtml = getValHtml(row.Yael_Actual || row.Actual_Yael, row.Yael_Planned || row.Planned_Yael, 'yael', locked, index);
-    const depHtml = getValHtml(row.Deposit_Actual || row.Actual_Deposit, row.Deposit_Planned || row.Planned_Deposit, 'dep', locked, index);
+    const firstDefined = (a, b) => a !== undefined ? a : b;
+    const romHtml = getValHtml(firstDefined(row.Rom_Actual, row.Actual_Rom), firstDefined(row.Rom_Planned, row.Planned_Rom), 'rom', locked, index);
+    const yaelHtml = getValHtml(firstDefined(row.Yael_Actual, row.Actual_Yael), firstDefined(row.Yael_Planned, row.Planned_Yael), 'yael', locked, index);
+    const depHtml = getValHtml(firstDefined(row.Deposit_Actual, row.Actual_Deposit), firstDefined(row.Deposit_Planned, row.Planned_Deposit), 'dep', locked, index);
 
     const graceDed = parseFloat(row.Grace_Deduction) || 0;
     const endBal = parseFloat(row.End_Balance) || 0;
@@ -277,19 +286,19 @@ window.renderApp = function() {
       <div class="ledger-card ${locked ? 'locked' : ''} ${isActive ? 'active open' : ''}" data-index="${index}">
         <div class="card-header" onclick="toggleCard(this)">
           <div class="month-info">
-            ${locked ? '<i class="fa-solid fa-lock lock-icon"></i>' : (isActive ? '<i class="fa-regular fa-clock" style="color:var(--warning)"></i>' : '')}
             <span class="month-name">${displayMonth}</span>
+            <span class="status-pill">${locked ? 'נסגר' : (isActive ? 'החודש הבא' : 'מתוכנן')}</span>
           </div>
-          <div style="display: flex; align-items: center;">
+          <div class="balance-wrap">
             <div class="balance-info">
               <div class="balance-label">יתרת סגירה</div>
               <div class="balance-val">${formatILS(endBal)}</div>
             </div>
-            <i class="fa-solid fa-chevron-down expand-icon" style="margin-right: 1rem;"></i>
+            <i class="fa-solid fa-chevron-down expand-icon"></i>
           </div>
         </div>
         <div class="card-body">
-          <div class="detail-row">
+          <div class="details-grid"><div class="detail-row">
             <span class="detail-label">הכנסה - רום:</span>
             <span class="detail-val">${romHtml}</span>
           </div>
@@ -302,26 +311,26 @@ window.renderApp = function() {
             <span class="detail-val">${depHtml}</span>
           </div>
           <div class="detail-row grace-row">
-            <span class="detail-label" style="color: inherit;">ניכוי גרייס משוער:</span>
+            <span class="detail-label">תשלום גרייס ${locked ? 'ששולם' : 'צפוי'}:</span>
             <span class="detail-val">- ${formatILS(graceDed)}</span>
-          </div>
+          </div></div>
 
           ${!locked ? `
             <div class="action-row">
-              <button class="btn-save" onclick="updateInflows('${row.Month}', ${index})">
+              <button class="btn-save" onclick="updateInflows('${escapeHtml(row.Month)}', ${index})">
                 <i class="fa-solid fa-floppy-disk"></i> שמור שינויים
               </button>
               ${isActive ? `
-              <button class="btn-approve" onclick="lockMonth('${row.Month}', this)">
+              <button class="btn-approve" onclick="lockMonth('${escapeHtml(row.Month)}', this)">
                 <i class="fa-solid fa-check-circle"></i> אשר וסגור חודש
               </button>
               ` : ''}
-              <button class="btn-ig-calc" onclick="window.openIndexGuardSheet('${row.Month}')" style="margin-top: 0.5rem; background-color: var(--warning); color: white;">
-                <i class="fa-solid fa-chart-line"></i> חישוב הצמדה למדד
+              <button class="btn-ig-calc" onclick="window.openIndexGuardSheet('${escapeHtml(row.Month)}')">
+                <i class="fa-solid fa-scale-balanced"></i> בדיקת הצמדה
               </button>
             </div>
           ` : `
-            <div class="action-row" style="text-align: right; font-size: 0.8rem; color: var(--success); display: flex; align-items: center; gap: 0.25rem;">
+            <div class="locked-note">
               <i class="fa-solid fa-shield-halved"></i> חודש נעול (קריאה בלבד)
             </div>
           `}

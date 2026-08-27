@@ -53,7 +53,12 @@ function getState() {
   const contractAmount = parseFloat(settings['Total_Contract_Amount']) || 1635000;
   const totalRemainingToContractor = contractAmount - totalDrawnPrincipalOnly;
 
-  const currentPrimeRate = primeRatesData.length > 0 ? parseFloat(primeRatesData[primeRatesData.length - 1].Prime_Rate_Value || primeRatesData[primeRatesData.length - 1].Rate) : 0;
+  let currentPrimeRate = 0;
+  primeRatesData
+    .map(row => ({ date: _parseDate(row.Effective_Date || row.Date), rate: parseFloat(row.Prime_Rate || row.Prime_Rate_Value || row.Rate) }))
+    .filter(row => !isNaN(row.date.getTime()) && row.date <= today && !isNaN(row.rate))
+    .sort((a, b) => a.date - b.date)
+    .forEach(row => { currentPrimeRate = row.rate; });
   const currentIndexValue = indexData.length > 0 ? parseFloat(indexData[indexData.length - 1].Index_Value) : 0;
 
   return {
@@ -127,6 +132,7 @@ function updateInflows(monthStr, rom, yael, deposit) {
     const romIdx = headers.indexOf('Rom_Actual') !== -1 ? headers.indexOf('Rom_Actual') : headers.indexOf('Actual_Rom');
     const yaelIdx = headers.indexOf('Yael_Actual') !== -1 ? headers.indexOf('Yael_Actual') : headers.indexOf('Actual_Yael');
     const depIdx = headers.indexOf('Deposit_Actual') !== -1 ? headers.indexOf('Deposit_Actual') : headers.indexOf('Actual_Deposit');
+    const lockedIdx = headers.indexOf('Is_Locked');
 
     if (monthIndex === -1) throw new Error("Missing Month column.");
 
@@ -143,6 +149,7 @@ function updateInflows(monthStr, rom, yael, deposit) {
 
       if (!isNaN(rowDate.getTime())) {
         if (rowDate.getFullYear() === targetYear && rowDate.getMonth() === targetMonth) {
+          if (lockedIdx !== -1 && String(data[i][lockedIdx]).toUpperCase() === 'TRUE') throw new Error("Locked months cannot be edited.");
           if (romIdx !== -1) sheet.getRange(i + 1, romIdx + 1).setValue(rom);
           if (yaelIdx !== -1) sheet.getRange(i + 1, yaelIdx + 1).setValue(yael);
           if (depIdx !== -1) sheet.getRange(i + 1, depIdx + 1).setValue(deposit);
@@ -150,6 +157,7 @@ function updateInflows(monthStr, rom, yael, deposit) {
           break;
         }
       } else if (String(rowMonth).trim() === String(monthStr).trim()) {
+        if (lockedIdx !== -1 && String(data[i][lockedIdx]).toUpperCase() === 'TRUE') throw new Error("Locked months cannot be edited.");
         if (romIdx !== -1) sheet.getRange(i + 1, romIdx + 1).setValue(rom);
         if (yaelIdx !== -1) sheet.getRange(i + 1, yaelIdx + 1).setValue(yael);
         if (depIdx !== -1) sheet.getRange(i + 1, depIdx + 1).setValue(deposit);
