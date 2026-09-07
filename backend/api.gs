@@ -61,6 +61,13 @@ function doPost(e) {
         if (!dateIndex || isNaN(indexValue) || indexValue <= 0) throw new Error("Missing or invalid 'date' or 'indexValue' parameters.");
         return buildJsonResponse(addConstructionIndex(dateIndex, indexValue));
 
+      case 'updateDedicatedSavings':
+        const savingsDate = String(postData.date || '');
+        const savingsAmount = parseFloat(postData.amount);
+        const savingsNote = String(postData.note || '');
+        if (!savingsDate || isNaN(savingsAmount) || savingsAmount < 0) throw new Error("Missing or invalid savings data.");
+        return buildJsonResponse(updateDedicatedSavings(savingsDate, savingsAmount, savingsNote));
+
       case 'approveIndexLinkage':
         const dateLinkage = String(postData.date || '');
         const amount = parseFloat(postData.amount);

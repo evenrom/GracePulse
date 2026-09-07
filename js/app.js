@@ -12,6 +12,7 @@ const TRACK_TOTALS = {
 
 // Global State
 window.appState = null;
+window.showAllClosedMonths = false;
 
 // Utility: Format Currency
 window.formatILS = (num) => {
@@ -77,6 +78,96 @@ window.savePrimeRate = async function(event) {
   } catch (error) {
     console.error('Prime rate update failed:', error);
     showToast(`שגיאה בעדכון הריבית: ${error.message}`, 'error');
+  } finally {
+    showLoading(false);
+  }
+};
+
+window.openConstructionIndexSheet = function() {
+  const indexDisplay = document.getElementById('current-index');
+  const current = indexDisplay.dataset.rawValue || indexDisplay.textContent;
+  document.getElementById('construction-index-input').value = current === '--' ? '' : current;
+  document.getElementById('construction-index-date').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('construction-index-overlay').classList.remove('hidden');
+  document.getElementById('construction-index-sheet').classList.remove('hidden');
+  document.getElementById('construction-index-input').focus();
+};
+
+window.closeConstructionIndexSheet = function() {
+  document.getElementById('construction-index-overlay').classList.add('hidden');
+  document.getElementById('construction-index-sheet').classList.add('hidden');
+};
+
+window.saveConstructionIndex = async function(event) {
+  event.preventDefault();
+  const indexValue = Number(document.getElementById('construction-index-input').value);
+  const date = document.getElementById('construction-index-date').value;
+  if (!Number.isFinite(indexValue) || indexValue <= 0 || !date) {
+    showToast('יש להזין מדד ותאריך תקינים', 'error');
+    return;
+  }
+  showLoading(true);
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST', body: JSON.stringify({ action: 'addConstructionIndex', date, indexValue }),
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+    });
+    if (!response.ok) throw new Error('Network request failed');
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    window.appState = data;
+    renderApp();
+    closeConstructionIndexSheet();
+    showToast('המדד נשמר והצפי עודכן');
+  } catch (error) {
+    console.error('Construction index update failed:', error);
+    showToast(`שגיאה בעדכון המדד: ${error.message}`, 'error');
+  } finally { showLoading(false); }
+};
+
+window.toggleClosedMonths = function() {
+  window.showAllClosedMonths = !window.showAllClosedMonths;
+  renderApp();
+};
+
+window.openSavingsSheet = function() {
+  document.getElementById('dedicated-savings-input').value = Number(window.appState?.aggregates?.dedicatedSavings) || 0;
+  document.getElementById('savings-note').value = '';
+  document.getElementById('savings-overlay').classList.remove('hidden');
+  document.getElementById('savings-sheet').classList.remove('hidden');
+  document.getElementById('dedicated-savings-input').focus();
+};
+
+window.closeSavingsSheet = function() {
+  document.getElementById('savings-overlay').classList.add('hidden');
+  document.getElementById('savings-sheet').classList.add('hidden');
+};
+
+window.saveDedicatedSavings = async function(event) {
+  event.preventDefault();
+  const amount = Number(document.getElementById('dedicated-savings-input').value);
+  const note = document.getElementById('savings-note').value.trim();
+  if (!Number.isFinite(amount) || amount < 0) {
+    showToast('יש להזין סכום חיסכון תקין', 'error');
+    return;
+  }
+  showLoading(true);
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'updateDedicatedSavings', date: new Date().toISOString(), amount, note }),
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+    });
+    if (!response.ok) throw new Error('Network request failed');
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    window.appState = data;
+    renderApp();
+    closeSavingsSheet();
+    showToast('החיסכון הייעודי עודכן');
+  } catch (error) {
+    console.error('Savings update failed:', error);
+    showToast(`שגיאה בעדכון החיסכון: ${error.message}`, 'error');
   } finally {
     showLoading(false);
   }
@@ -195,20 +286,16 @@ window.updateInflows = async function(monthStr, index) {
 // Calculate Active Drawn per Track locally based on milestones up to "today"
 window.calculateActiveDrawnForBars = function() {
   let drawn = { Mishtana: 0, Kavua: 0, Prime: 0 };
-  const today = new Date();
 
   if (!window.appState || !window.appState.milestones) return drawn;
 
   window.appState.milestones.forEach(m => {
-    let mDate = new Date(m.Date);
-    if (mDate <= today) {
+    if (isTrue(m.Is_Drawn)) {
       let track = String(m.Track).toLowerCase();
       let amount = parseFloat(m.Amount) || 0;
       if (track.includes('mishtana')) drawn.Mishtana += amount;
       else if (track.includes('kavua')) drawn.Kavua += amount;
       else if (track.includes('prime')) drawn.Prime += amount;
-      // Index linkage charge is dynamically added to the Kavua principal
-      else if (track.includes('index_linkage_charge')) drawn.Mishtana += amount;
     }
   });
   return drawn;
@@ -222,7 +309,50 @@ window.renderApp = function() {
 
   // 1. Dashboard Aggregates
       document.getElementById('liquid-balance').textContent = formatILS(appState.aggregates.liquidBalance);
-      document.getElementById('remaining-contractor').textContent = formatILS(appState.aggregates.totalRemainingToContractor);
+      const remainingGraceFromLedger = (state.ledger || []).reduce((sum, row) => {
+        return isTrue(row.Is_Locked) ? sum : sum + (parseFloat(row.Grace_Deduction) || 0);
+      }, 0);
+      const remainingGrace = Number.isFinite(Number(appState.aggregates.totalRemainingGrace))
+        ? Number(appState.aggregates.totalRemainingGrace)
+        : remainingGraceFromLedger;
+      document.getElementById('remaining-bank').textContent = formatILS(remainingGrace);
+
+      const kitchenTotal = Number(state.settings.Kitchen_Total) || 27800;
+      const kitchenPaid = Number(state.settings.Kitchen_Paid) || 6850;
+      const appliancesTotal = Number(state.settings.Appliances_Total) || 11392;
+      const appliancesPaid = Number(state.settings.Appliances_Paid) || 2848;
+      const aviviRemaining = Math.max(0, kitchenTotal - kitchenPaid) + Math.max(0, appliancesTotal - appliancesPaid);
+      const dedicatedSavings = Number(state.aggregates.dedicatedSavings) || 0;
+      const savingsGap = aviviRemaining - dedicatedSavings;
+      document.getElementById('avivi-remaining').textContent = formatILS(aviviRemaining);
+      document.getElementById('dedicated-savings').textContent = formatILS(dedicatedSavings);
+      document.getElementById('savings-gap-label').textContent = savingsGap >= 0 ? 'חסר ליעד' : 'עודף מול היעד';
+      document.getElementById('savings-gap').textContent = formatILS(Math.abs(savingsGap));
+      document.getElementById('savings-gap').className = savingsGap > 0 ? 'text-danger' : 'text-success';
+      document.getElementById('savings-progress').style.width = `${Math.min(100, aviviRemaining ? (dedicatedSavings / aviviRemaining) * 100 : 100)}%`;
+      document.getElementById('avivi-breakdown').textContent = `מטבח: ${formatILS(kitchenTotal - kitchenPaid)} נותרו · מכשירי חשמל: ${formatILS(appliancesTotal - appliancesPaid)} נותרו`;
+
+      const baseIndex = Number(state.settings.Base_Construction_Index) || 137.7;
+      const linkageRate = Number(state.settings.Legal_Linkage_Rate) || 0.4;
+      const indexFromRows = (state.constructionIndices || []).reduce((latest, row) => {
+        const values = Object.values(row);
+        const value = Number(row.Index_Value ?? row.Value ?? values[1]);
+        return Number.isFinite(value) && value > 0 ? value : latest;
+      }, 0);
+      const currentIndex = Number(state.aggregates.currentIndexValue) || indexFromRows || 147.5545;
+      const paidIndex = Number(state.aggregates.indexLinkagePaid) || (state.indexLinkage || []).reduce((sum, row) => isTrue(row.Is_Paid) ? sum + (Number(row.Amount) || 0) : sum, 0);
+      const linkageMilestoneKeys = new Set((state.indexLinkage || []).map(row => `${new Date(row.Date).getTime()}|${Number(row.Amount) || 0}|${String(row.Related_Track || '').toLowerCase()}`));
+      const remainingPrincipal = (state.milestones || []).reduce((sum, row) => {
+        const key = `${new Date(row.Date).getTime()}|${Number(row.Amount) || 0}|${String(row.Track || '').toLowerCase()}`;
+        return isTrue(row.Is_Drawn) || linkageMilestoneKeys.has(key) ? sum : sum + (Number(row.Amount) || 0);
+      }, 0);
+      const expectedIndex = Number(state.aggregates.indexLinkageRemaining) || Math.max(0, remainingPrincipal * linkageRate * ((currentIndex / baseIndex) - 1));
+      const totalIndex = paidIndex + expectedIndex;
+      document.getElementById('current-index').textContent = currentIndex.toFixed(2);
+      document.getElementById('current-index').dataset.rawValue = String(currentIndex);
+      document.getElementById('base-index').textContent = baseIndex;
+      document.getElementById('index-total').textContent = formatILS(totalIndex);
+      document.getElementById('index-breakdown').textContent = `כולל ${formatILS(paidIndex)} שכבר שולמו ועוד ${formatILS(expectedIndex)} הצמדה צפויה לפי מדד ${currentIndex.toFixed(2)}.`;
       
       // --- STRICT DB REFLECTION: Prime Rate ---
       const aggregatePrime = Number(appState.aggregates.currentPrimeRate);
@@ -241,6 +371,10 @@ window.renderApp = function() {
       if (appState.ledger && appState.ledger.length > 0) {
         const lastRow = appState.ledger[appState.ledger.length - 1];
         const finalBalance = parseFloat(lastRow.End_Balance) || 0;
+        const overallBalance = finalBalance - Math.max(0, savingsGap) - totalIndex;
+        const overallEl = document.getElementById('overall-balance');
+        overallEl.textContent = formatILS(overallBalance);
+        overallEl.className = overallBalance < 0 ? 'text-danger' : 'text-success';
 
         if (finalBalance < 0) {
           projectedFinalEl.className = 'text-danger';
@@ -291,7 +425,16 @@ window.renderApp = function() {
     }
   }
 
-  ledgerContainer.innerHTML = state.ledger.map((row, index) => {
+  const lastLockedIndex = state.ledger.reduce((last, row, index) => isTrue(row.Is_Locked) ? index : last, -1);
+  const visibleLedger = state.ledger.map((row, index) => ({ row, index })).filter(({ row, index }) => {
+    return !isTrue(row.Is_Locked) || window.showAllClosedMonths || index === lastLockedIndex;
+  });
+  const historyButton = document.getElementById('toggle-history');
+  historyButton.innerHTML = window.showAllClosedMonths
+    ? '<i class="fa-solid fa-eye-slash"></i> הסתרת חודשים סגורים'
+    : '<i class="fa-solid fa-clock-rotate-left"></i> הצגת חודשים סגורים';
+
+  ledgerContainer.innerHTML = visibleLedger.map(({ row, index }) => {
     const locked = isTrue(row.Is_Locked);
     const isActive = index === activeMonthIndex;
 

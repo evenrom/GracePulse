@@ -18,7 +18,9 @@ function getState() {
   const milestonesData = _readSheet(ss, 'Milestones');
   const primeRatesData = _readSheet(ss, 'Prime_Rates');
   const indexData = _readSheet(ss, 'Construction_Index');
+  const indexLinkageData = _readSheet(ss, 'Index_Linkage');
   const settingsData = _readSheet(ss, 'System_Settings');
+  const savingsUpdatesData = _readSheet(ss, 'Savings_Updates');
 
   // Convert settings to Key-Value Map
   const settings = {};
@@ -30,6 +32,7 @@ function getState() {
   let liquidBalance = 0;
   let totalDrawnPrincipalOnly = 0;
   let totalDrawnAll = 0;
+  let totalRemainingGrace = 0;
 
   for (let i = ledgerData.length - 1; i >= 0; i--) {
     if (String(ledgerData[i].Is_Locked).toUpperCase() === 'TRUE') {
@@ -38,10 +41,15 @@ function getState() {
     }
   }
 
+  ledgerData.forEach(row => {
+    if (String(row.Is_Locked).toUpperCase() !== 'TRUE') {
+      totalRemainingGrace += parseFloat(row.Grace_Deduction) || 0;
+    }
+  });
+
   const today = new Date();
   milestonesData.forEach(m => {
-    const mDate = _parseDate(m.Date);
-    if (mDate <= today) {
+    if (String(m.Is_Drawn).toUpperCase() === 'TRUE') {
       const amt = parseFloat(m.Amount) || 0;
       totalDrawnAll += amt;
       if (String(m.Track) !== 'Index_Linkage_Charge') {
@@ -59,20 +67,52 @@ function getState() {
     .filter(row => !isNaN(row.date.getTime()) && row.date <= today && !isNaN(row.rate))
     .sort((a, b) => a.date - b.date)
     .forEach(row => { currentPrimeRate = row.rate; });
-  const currentIndexValue = indexData.length > 0 ? parseFloat(indexData[indexData.length - 1].Index_Value) : 0;
+  let currentIndexValue = 0;
+  indexData
+    .map(row => ({ date: _parseDate(row.Effective_Month || row.Date), value: parseFloat(row.Index_Value || row.Value) }))
+    .filter(row => !isNaN(row.date.getTime()) && row.date <= today && !isNaN(row.value))
+    .sort((a, b) => a.date - b.date)
+    .forEach(row => { currentIndexValue = row.value; });
+  const baseIndex = parseFloat(settings['Base_Construction_Index']) || 137.7;
+  const linkageRate = parseFloat(settings['Legal_Linkage_Rate']) || 0.4;
+  const paidIndexLinkage = indexLinkageData.reduce((sum, row) => {
+    return String(row.Is_Paid).toUpperCase() === 'TRUE' ? sum + (parseFloat(row.Amount) || 0) : sum;
+  }, 0);
+  const linkageMilestoneKeys = {};
+  indexLinkageData.forEach(row => {
+    const key = _parseDate(row.Date).getTime() + '|' + (parseFloat(row.Amount) || 0) + '|' + String(row.Related_Track || '').toLowerCase();
+    linkageMilestoneKeys[key] = true;
+  });
+  const remainingIndexedPrincipal = milestonesData.reduce((sum, row) => {
+    const key = _parseDate(row.Date).getTime() + '|' + (parseFloat(row.Amount) || 0) + '|' + String(row.Track || '').toLowerCase();
+    return String(row.Is_Drawn).toUpperCase() === 'TRUE' || linkageMilestoneKeys[key] ? sum : sum + (parseFloat(row.Amount) || 0);
+  }, 0);
+  const expectedIndexLinkage = currentIndexValue > 0
+    ? Math.max(0, remainingIndexedPrincipal * linkageRate * ((currentIndexValue / baseIndex) - 1))
+    : 0;
+  const latestSavings = savingsUpdatesData.length > 0
+    ? parseFloat(savingsUpdatesData[savingsUpdatesData.length - 1].Current_Savings) || 0
+    : 0;
 
   return {
     ledger: ledgerData,
     milestones: milestonesData,
     primeRates: primeRatesData,
     constructionIndices: indexData,
+    indexLinkage: indexLinkageData,
     settings: settings,
+    savingsUpdates: savingsUpdatesData,
     aggregates: {
       liquidBalance: liquidBalance,
       totalRemainingToContractor: totalRemainingToContractor,
+      totalRemainingGrace: totalRemainingGrace,
+      dedicatedSavings: latestSavings,
       totalDrawn: totalDrawnAll,
       currentPrimeRate: currentPrimeRate,
-      currentIndexValue: currentIndexValue
+      currentIndexValue: currentIndexValue,
+      indexLinkageTotal: paidIndexLinkage + expectedIndexLinkage,
+      indexLinkagePaid: paidIndexLinkage,
+      indexLinkageRemaining: expectedIndexLinkage
     }
   };
 }
@@ -185,7 +225,12 @@ function addPrimeRate(dateStr, rate) {
 function addConstructionIndex(dateStr, indexValue) {
   return _withLock(() => {
     const ss = getSpreadsheet();
-    ss.getSheetByName('Construction_Index').appendRow([dateStr, indexValue]);
+    let sheet = ss.getSheetByName('Construction_Index');
+    if (!sheet) {
+      sheet = ss.insertSheet('Construction_Index');
+      sheet.appendRow(['Effective_Month', 'Index_Value']);
+    }
+    sheet.appendRow([dateStr, indexValue]);
     return getState();
   });
 }
@@ -193,9 +238,12 @@ function addConstructionIndex(dateStr, indexValue) {
 function appendIndexLinkage(dateStr, amount) {
   return _withLock(() => {
     const ss = getSpreadsheet();
-    // Appends to Milestones: Date, Amount, Track, Status
-    ss.getSheetByName('Milestones').appendRow([dateStr, amount, 'Index_Linkage_Charge', 'TRUE']);
-    recalculateGrace(ss);
+    let sheet = ss.getSheetByName('Index_Linkage');
+    if (!sheet) {
+      sheet = ss.insertSheet('Index_Linkage');
+      sheet.appendRow(['Date', 'Amount', 'Related_Track', 'Is_Paid']);
+    }
+    sheet.appendRow([dateStr, amount, '', true]);
     return getState();
   });
 }
@@ -232,4 +280,17 @@ function _withLock(callback) {
   } finally {
     lock.releaseLock();
   }
+}
+
+function updateDedicatedSavings(dateStr, amount, note) {
+  return _withLock(() => {
+    const ss = getSpreadsheet();
+    let sheet = ss.getSheetByName('Savings_Updates');
+    if (!sheet) {
+      sheet = ss.insertSheet('Savings_Updates');
+      sheet.appendRow(['Updated_At', 'Current_Savings', 'Note']);
+    }
+    sheet.appendRow([dateStr, amount, note || '']);
+    return getState();
+  });
 }
