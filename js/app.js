@@ -374,7 +374,7 @@ window.renderApp = function() {
       if (appState.ledger && appState.ledger.length > 0) {
         const lastRow = appState.ledger[appState.ledger.length - 1];
         const finalBalance = parseFloat(lastRow.End_Balance) || 0;
-        const overallBalance = finalBalance - Math.max(0, savingsGap) - totalIndex;
+        const overallBalance = finalBalance - savingsGap - totalIndex;
         const overallEl = document.getElementById('overall-balance');
         overallEl.textContent = formatILS(overallBalance);
         overallEl.className = overallBalance < 0 ? 'text-danger' : 'text-success';
