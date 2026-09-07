@@ -131,7 +131,7 @@ window.toggleClosedMonths = function() {
 };
 
 window.openSavingsSheet = function() {
-  document.getElementById('dedicated-savings-input').value = Number(window.appState?.aggregates?.dedicatedSavings) || 0;
+  document.getElementById('dedicated-savings-input').value = '';
   document.getElementById('savings-note').value = '';
   document.getElementById('savings-overlay').classList.remove('hidden');
   document.getElementById('savings-sheet').classList.remove('hidden');
@@ -322,7 +322,10 @@ window.renderApp = function() {
       const appliancesTotal = Number(state.settings.Appliances_Total) || 11392;
       const appliancesPaid = Number(state.settings.Appliances_Paid) || 2848;
       const aviviRemaining = Math.max(0, kitchenTotal - kitchenPaid) + Math.max(0, appliancesTotal - appliancesPaid);
-      const dedicatedSavings = Number(state.aggregates.dedicatedSavings) || 0;
+      const savingsFromRows = (state.savingsUpdates || []).reduce((sum, row) => sum + (Number(row.Current_Savings) || 0), 0);
+      const dedicatedSavings = Number.isFinite(Number(state.aggregates.dedicatedSavings))
+        ? Number(state.aggregates.dedicatedSavings)
+        : savingsFromRows;
       const savingsGap = aviviRemaining - dedicatedSavings;
       document.getElementById('avivi-remaining').textContent = formatILS(aviviRemaining);
       document.getElementById('dedicated-savings').textContent = formatILS(dedicatedSavings);

@@ -90,9 +90,9 @@ function getState() {
   const expectedIndexLinkage = currentIndexValue > 0
     ? Math.max(0, remainingIndexedPrincipal * linkageRate * ((currentIndexValue / baseIndex) - 1))
     : 0;
-  const latestSavings = savingsUpdatesData.length > 0
-    ? parseFloat(savingsUpdatesData[savingsUpdatesData.length - 1].Current_Savings) || 0
-    : 0;
+  const totalDedicatedSavings = savingsUpdatesData.reduce((sum, row) => {
+    return sum + (parseFloat(row.Current_Savings) || 0);
+  }, 0);
 
   return {
     ledger: ledgerData,
@@ -106,7 +106,7 @@ function getState() {
       liquidBalance: liquidBalance,
       totalRemainingToContractor: totalRemainingToContractor,
       totalRemainingGrace: totalRemainingGrace,
-      dedicatedSavings: latestSavings,
+      dedicatedSavings: totalDedicatedSavings,
       totalDrawn: totalDrawnAll,
       currentPrimeRate: currentPrimeRate,
       currentIndexValue: currentIndexValue,
