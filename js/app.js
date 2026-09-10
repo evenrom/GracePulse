@@ -345,7 +345,9 @@ window.renderApp = function() {
       const currentIndex = Number(state.aggregates.currentIndexValue) || indexFromRows || 147.5545;
       const paidIndex = Number(state.aggregates.indexLinkagePaid) || (state.indexLinkage || []).reduce((sum, row) => isTrue(row.Is_Paid) ? sum + (Number(row.Amount) || 0) : sum, 0);
       const remainingPrincipal = Number(state.settings.Remaining_Indexed_Contract_Amount) || 436000;
-      const expectedIndex = Number(state.aggregates.indexLinkageRemaining) || Math.max(0, remainingPrincipal * linkageRate * ((currentIndex / baseIndex) - 1));
+      // Calculate from the live contractor settings. Do not trust a cached aggregate
+      // from an older Apps Script deployment, which may still use the former formula.
+      const expectedIndex = Math.max(0, remainingPrincipal * linkageRate * ((currentIndex / baseIndex) - 1));
       const totalIndex = paidIndex + expectedIndex;
       document.getElementById('current-index').textContent = currentIndex.toFixed(2);
       document.getElementById('current-index').dataset.rawValue = String(currentIndex);
