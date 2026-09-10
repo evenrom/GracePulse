@@ -73,20 +73,12 @@ function getState() {
     .filter(row => !isNaN(row.date.getTime()) && row.date <= today && !isNaN(row.value))
     .sort((a, b) => a.date - b.date)
     .forEach(row => { currentIndexValue = row.value; });
-  const baseIndex = parseFloat(settings['Base_Construction_Index']) || 137.7;
-  const linkageRate = parseFloat(settings['Legal_Linkage_Rate']) || 0.4;
+  const baseIndex = parseFloat(settings['Contractor_Base_Index']) || 138.4;
+  const linkageRate = parseFloat(settings['Contractor_Linkage_Rate']) || 0.5;
   const paidIndexLinkage = indexLinkageData.reduce((sum, row) => {
     return String(row.Is_Paid).toUpperCase() === 'TRUE' ? sum + (parseFloat(row.Amount) || 0) : sum;
   }, 0);
-  const linkageMilestoneKeys = {};
-  indexLinkageData.forEach(row => {
-    const key = _parseDate(row.Date).getTime() + '|' + (parseFloat(row.Amount) || 0) + '|' + String(row.Related_Track || '').toLowerCase();
-    linkageMilestoneKeys[key] = true;
-  });
-  const remainingIndexedPrincipal = milestonesData.reduce((sum, row) => {
-    const key = _parseDate(row.Date).getTime() + '|' + (parseFloat(row.Amount) || 0) + '|' + String(row.Track || '').toLowerCase();
-    return String(row.Is_Drawn).toUpperCase() === 'TRUE' || linkageMilestoneKeys[key] ? sum : sum + (parseFloat(row.Amount) || 0);
-  }, 0);
+  const remainingIndexedPrincipal = parseFloat(settings['Remaining_Indexed_Contract_Amount']) || 436000;
   const expectedIndexLinkage = currentIndexValue > 0
     ? Math.max(0, remainingIndexedPrincipal * linkageRate * ((currentIndexValue / baseIndex) - 1))
     : 0;

@@ -335,8 +335,8 @@ window.renderApp = function() {
       document.getElementById('savings-progress').style.width = `${Math.min(100, aviviRemaining ? (dedicatedSavings / aviviRemaining) * 100 : 100)}%`;
       document.getElementById('avivi-breakdown').textContent = `מטבח: ${formatILS(kitchenTotal - kitchenPaid)} נותרו · מכשירי חשמל: ${formatILS(appliancesTotal - appliancesPaid)} נותרו`;
 
-      const baseIndex = Number(state.settings.Base_Construction_Index) || 137.7;
-      const linkageRate = Number(state.settings.Legal_Linkage_Rate) || 0.4;
+      const baseIndex = Number(state.settings.Contractor_Base_Index) || 138.4;
+      const linkageRate = Number(state.settings.Contractor_Linkage_Rate) || 0.5;
       const indexFromRows = (state.constructionIndices || []).reduce((latest, row) => {
         const values = Object.values(row);
         const value = Number(row.Index_Value ?? row.Value ?? values[1]);
@@ -344,11 +344,7 @@ window.renderApp = function() {
       }, 0);
       const currentIndex = Number(state.aggregates.currentIndexValue) || indexFromRows || 147.5545;
       const paidIndex = Number(state.aggregates.indexLinkagePaid) || (state.indexLinkage || []).reduce((sum, row) => isTrue(row.Is_Paid) ? sum + (Number(row.Amount) || 0) : sum, 0);
-      const linkageMilestoneKeys = new Set((state.indexLinkage || []).map(row => `${new Date(row.Date).getTime()}|${Number(row.Amount) || 0}|${String(row.Related_Track || '').toLowerCase()}`));
-      const remainingPrincipal = (state.milestones || []).reduce((sum, row) => {
-        const key = `${new Date(row.Date).getTime()}|${Number(row.Amount) || 0}|${String(row.Track || '').toLowerCase()}`;
-        return isTrue(row.Is_Drawn) || linkageMilestoneKeys.has(key) ? sum : sum + (Number(row.Amount) || 0);
-      }, 0);
+      const remainingPrincipal = Number(state.settings.Remaining_Indexed_Contract_Amount) || 436000;
       const expectedIndex = Number(state.aggregates.indexLinkageRemaining) || Math.max(0, remainingPrincipal * linkageRate * ((currentIndex / baseIndex) - 1));
       const totalIndex = paidIndex + expectedIndex;
       document.getElementById('current-index').textContent = currentIndex.toFixed(2);
