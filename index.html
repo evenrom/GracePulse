@@ -41,15 +41,23 @@
         <article class="goal-card">
           <div class="goal-main"><h3>אביבי מטבחים</h3><button class="btn btn-secondary" type="button" onclick="openSavingsSheet()"><i class="fa-solid fa-pen"></i> עדכון חיסכון</button></div>
           <div class="goal-stats"><div><span>נותר לתשלום</span><strong id="avivi-remaining">-- ₪</strong></div><div><span>נחסך בצד</span><strong id="dedicated-savings">-- ₪</strong></div><div><span id="savings-gap-label">חסר ליעד</span><strong id="savings-gap">-- ₪</strong></div></div>
-          <div class="goal-progress"><div id="savings-progress"></div></div><p class="goal-breakdown" id="avivi-breakdown"></p>
+          <p class="goal-breakdown" id="avivi-breakdown"></p>
         </article>
         <article class="goal-card index-goal">
           <div class="goal-main"><h3>הצמדה למדד</h3><span class="goal-badge">צפי לפי המדד הנוכחי</span></div>
           <div class="index-total-stat"><span>סה״כ צפוי לתשלום בסיום</span><strong id="index-total">-- ₪</strong></div>
           <p class="goal-breakdown" id="index-breakdown"></p>
         </article>
+        <article class="goal-card furniture-goal">
+          <div class="goal-main"><h3>ריהוט לבית</h3><a class="goal-source-link" href="https://evenrom.github.io/habitat-hub/" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-arrow-up-right-from-square"></i> Finance Dashboard ב־Habitat</a></div>
+          <div class="furniture-stats"><div><span>ריהוט חובה</span><strong id="furniture-required">טוען…</strong><small id="furniture-required-count"></small></div><div><span>ריהוט אקסטרה</span><strong id="furniture-extra">טוען…</strong><small id="furniture-extra-count"></small></div></div>
+          <p class="goal-breakdown" id="furniture-status">הנתונים מתעדכנים אוטומטית מ־Habitat.</p>
+        </article>
       </div>
-      <article class="overall-card"><div><p class="eyebrow">סיכום כולל</p><h3>יתרה צפויה לאחר כל היעדים</h3><small>יתרת הכניסה, בניכוי הפער לאביבי מטבחים וההצמדה הצפויה</small></div><strong id="overall-balance">-- ₪</strong></article>
+      <article class="overall-card">
+        <div class="overall-summary"><div><p class="eyebrow">סיכום כולל</p><h3>יתרה צפויה לאחר כל יעדי החובה</h3><small>יתרת הכניסה, בניכוי הפער לאביבי מטבחים, ההצמדה הצפויה וריהוט החובה</small></div><strong id="overall-balance">-- ₪</strong></div>
+        <div class="priority-funding"><div class="priority-heading"><h4>הקצאת הכסף לפי סדר חשיבות</h4><span id="priority-funding-note">הסכום הזמין מוקצה תחילה לתשלומי הבנק, ולאחר מכן ליעדים הבאים.</span></div><div id="priority-funding-list" class="priority-funding-list"></div></div>
+      </article>
     </section>
 
     <section aria-labelledby="tracks-title"><div class="section-heading"><div><p class="eyebrow">לפי סוג תשלום</p><h2 id="tracks-title">התקדמות המשכנתא</h2></div><span class="section-note">שולם מתוך הסכום הכולל</span></div><div class="tracks-card" id="tracks-container"></div></section>
@@ -70,5 +78,5 @@
   <div id="index-guard-overlay" class="bottom-sheet-overlay hidden" onclick="closeIndexGuardSheet()"></div>
   <div id="index-guard-sheet" class="bottom-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="ig-title"><div class="sheet-handle"></div><div class="bottom-sheet-header"><h2 id="ig-title">בדיקת הצמדה למדד</h2><button class="icon-btn" onclick="closeIndexGuardSheet()" aria-label="סגירה"><i class="fa-solid fa-times"></i></button></div><p class="sheet-intro">בדיקת דרישת הצמדה נקודתית לפני תשלום.</p><div class="form-grid"><div class="ig-input-group"><label for="ig-principal-amount">קרן התשלום</label><input type="number" id="ig-principal-amount" min="0" step="1" oninput="calculateIndexGuardDelta()"></div><div class="ig-input-group"><label for="ig-current-index">המדד הנוכחי</label><input type="number" id="ig-current-index" min="0" step="0.0001" oninput="calculateIndexGuardDelta()"></div></div><div class="ig-comparison-table"><div class="ig-table-row"><span>הצמדה לפי החוק</span><strong id="ig-legal-charge">0 ₪</strong></div><div class="ig-table-row"><span>הצמדה לפי הקבלן</span><strong id="ig-contractor-charge">0 ₪</strong></div><div class="ig-table-row ig-delta-row"><span>פער לבדיקה</span><strong id="ig-delta-display">0 ₪</strong></div></div><button class="btn btn-primary" id="btn-ig-approve" onclick="approveIndexLinkage()" disabled>רישום כתשלום שבוצע</button></div>
 
-  <script src="js/app.js?v=20260910-2"></script><script src="js/index_guard.js"></script>
+  <script src="js/app.js?v=20260910-3"></script><script src="js/index_guard.js"></script>
 </body></html>

@@ -2,6 +2,8 @@
 
 // Configuration
 const API_URL = "https://script.google.com/macros/s/AKfycbx71ZFrhtTGy66h5x6fRE6wqi-xOxNz9i6dswyrU4zf6XV410zaMd1ZeqJQ7UEZDPlJTA/exec";
+const HABITAT_API_URL = "https://script.google.com/macros/s/AKfycbzdEpbxigPkTkrYl-bAhM7gaVfQKOJL1NTOusEc95uIAdahAFpM8Npanb7fnJ5vgKjY/exec";
+const HABITAT_PASSCODE = "SA8RG";
 
 // Constants for totals
 const TRACK_TOTALS = {
@@ -12,6 +14,7 @@ const TRACK_TOTALS = {
 
 // Global State
 window.appState = null;
+window.habitatBudget = { status: 'loading', requiredRemaining: 0, extraRemaining: 0, requiredCount: 0, extraCount: 0 };
 window.showAllClosedMonths = false;
 
 // Utility: Format Currency
@@ -176,13 +179,49 @@ window.saveDedicatedSavings = async function(event) {
 // Initialize App
 async function initApp() {
   try {
-    await fetchState();
+    const [stateResult] = await Promise.allSettled([fetchState(), fetchHabitatBudget()]);
+    if (stateResult.status === 'rejected') throw stateResult.reason;
   } catch (error) {
     console.error("Initialization failed:", error);
     showToast("שגיאה בטעינת הנתונים", "error");
     showLoading(false);
   }
 }
+
+window.calculateHabitatBudget = function(items = []) {
+  return items.reduce((totals, item) => {
+    if (!item || (!item.id && !item.name) || String(item.type || '').toLowerCase() === 'alternative' || isTrue(item.is_purchased)) return totals;
+    const price = Number(item.price);
+    if (!Number.isFinite(price) || price < 0) return totals;
+    if (isTrue(item.is_nice_to_have)) {
+      totals.extraRemaining += price;
+      totals.extraCount += 1;
+    } else {
+      totals.requiredRemaining += price;
+      totals.requiredCount += 1;
+    }
+    return totals;
+  }, { requiredRemaining: 0, extraRemaining: 0, requiredCount: 0, extraCount: 0 });
+};
+
+window.fetchHabitatBudget = async function() {
+  try {
+    const response = await fetch(HABITAT_API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ passcode: HABITAT_PASSCODE, action: 'getInitialData' }),
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+    });
+    if (!response.ok) throw new Error('Habitat request failed');
+    const data = await response.json();
+    if (data.error || !Array.isArray(data.items)) throw new Error(data.error || 'Habitat returned invalid data');
+    window.habitatBudget = { status: 'ready', ...calculateHabitatBudget(data.items) };
+  } catch (error) {
+    console.error('Habitat budget load failed:', error);
+    window.habitatBudget = { status: 'error', requiredRemaining: 0, extraRemaining: 0, requiredCount: 0, extraCount: 0 };
+  } finally {
+    if (window.appState) renderApp();
+  }
+};
 
 // API: Fetch State
 window.fetchState = async function() {
@@ -332,7 +371,6 @@ window.renderApp = function() {
       document.getElementById('savings-gap-label').textContent = savingsGap >= 0 ? 'חסר ליעד' : 'עודף מול היעד';
       document.getElementById('savings-gap').textContent = formatILS(Math.abs(savingsGap));
       document.getElementById('savings-gap').className = savingsGap > 0 ? 'text-danger' : 'text-success';
-      document.getElementById('savings-progress').style.width = `${Math.min(100, aviviRemaining ? (dedicatedSavings / aviviRemaining) * 100 : 100)}%`;
       document.getElementById('avivi-breakdown').textContent = `מטבח: ${formatILS(kitchenTotal - kitchenPaid)} נותרו · מכשירי חשמל: ${formatILS(appliancesTotal - appliancesPaid)} נותרו`;
 
       const baseIndex = Number(state.settings.Contractor_Base_Index) || 138.4;
@@ -354,6 +392,27 @@ window.renderApp = function() {
       document.getElementById('base-index').textContent = baseIndex;
       document.getElementById('index-total').textContent = formatILS(totalIndex);
       document.getElementById('index-breakdown').textContent = `כולל ${formatILS(paidIndex)} שכבר שולמו ועוד ${formatILS(expectedIndex)} הצמדה צפויה לפי מדד ${currentIndex.toFixed(2)}.`;
+
+      const habitat = window.habitatBudget;
+      const furnitureRequiredEl = document.getElementById('furniture-required');
+      const furnitureExtraEl = document.getElementById('furniture-extra');
+      const furnitureStatusEl = document.getElementById('furniture-status');
+      if (habitat.status === 'ready') {
+        furnitureRequiredEl.textContent = formatILS(habitat.requiredRemaining);
+        furnitureExtraEl.textContent = formatILS(habitat.extraRemaining);
+        document.getElementById('furniture-required-count').textContent = `${habitat.requiredCount} פריטים שטרם נרכשו`;
+        document.getElementById('furniture-extra-count').textContent = `${habitat.extraCount} פריטים שטרם נרכשו`;
+        furnitureStatusEl.textContent = 'הנתונים מתעדכנים אוטומטית מ־Finance Dashboard ב־Habitat.';
+      } else {
+        const statusText = habitat.status === 'error' ? 'לא זמין' : 'טוען…';
+        furnitureRequiredEl.textContent = statusText;
+        furnitureExtraEl.textContent = statusText;
+        document.getElementById('furniture-required-count').textContent = '';
+        document.getElementById('furniture-extra-count').textContent = '';
+        furnitureStatusEl.textContent = habitat.status === 'error'
+          ? 'לא ניתן לטעון כרגע את נתוני Habitat. שאר הנתונים ממשיכים לפעול כרגיל.'
+          : 'טוען נתונים מ־Habitat…';
+      }
       
       // --- STRICT DB REFLECTION: Prime Rate ---
       const aggregatePrime = Number(appState.aggregates.currentPrimeRate);
@@ -372,10 +431,39 @@ window.renderApp = function() {
       if (appState.ledger && appState.ledger.length > 0) {
         const lastRow = appState.ledger[appState.ledger.length - 1];
         const finalBalance = parseFloat(lastRow.End_Balance) || 0;
-        const overallBalance = finalBalance - savingsGap - totalIndex;
         const overallEl = document.getElementById('overall-balance');
-        overallEl.textContent = formatILS(overallBalance);
-        overallEl.className = overallBalance < 0 ? 'text-danger' : 'text-success';
+        if (habitat.status === 'ready') {
+          const overallBalance = finalBalance - savingsGap - totalIndex - habitat.requiredRemaining;
+          overallEl.textContent = formatILS(overallBalance);
+          overallEl.className = overallBalance < 0 ? 'text-danger' : 'text-success';
+
+          // End_Balance is already net of future grace payments. Add them back only
+          // for the waterfall pool, then allocate the same money once by priority.
+          let fundsToAllocate = Math.max(0, remainingGrace + finalBalance + dedicatedSavings);
+          const priorities = [
+            { label: 'תשלומי גרייס לבנק', target: remainingGrace },
+            { label: 'אביבי מטבחים', target: aviviRemaining },
+            { label: 'הצמדה למדד', target: totalIndex },
+            { label: 'ריהוט חובה', target: habitat.requiredRemaining },
+            { label: 'ריהוט אקסטרה', target: habitat.extraRemaining }
+          ].map((item, index) => {
+            const funded = Math.min(fundsToAllocate, Math.max(0, item.target));
+            fundsToAllocate = Math.max(0, fundsToAllocate - funded);
+            const percent = item.target > 0 ? Math.min(100, (funded / item.target) * 100) : 100;
+            return { ...item, funded, percent, index: index + 1 };
+          });
+
+          document.getElementById('priority-funding-list').innerHTML = priorities.map(item => `
+            <div class="priority-row ${item.percent >= 100 ? 'complete' : ''}">
+              <div class="priority-label"><span class="priority-number">${item.index}</span>${escapeHtml(item.label)}</div>
+              <div class="priority-track" role="progressbar" aria-label="${escapeHtml(item.label)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(item.percent)}"><div class="priority-fill" style="width:${item.percent}%"></div></div>
+              <div class="priority-values">${formatILS(item.funded)} / ${formatILS(item.target)}</div>
+            </div>`).join('');
+        } else {
+          overallEl.textContent = '--';
+          overallEl.className = '';
+          document.getElementById('priority-funding-list').innerHTML = '<div class="priority-loading">ממתין לנתוני הריהוט מ־Habitat…</div>';
+        }
 
         if (finalBalance < 0) {
           projectedFinalEl.className = 'text-danger';
