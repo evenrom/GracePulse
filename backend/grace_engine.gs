@@ -22,8 +22,16 @@ function recalculateGrace(ss) {
     Deposit_Actual: ledgerHeaders.indexOf('Deposit_Actual') !== -1 ? ledgerHeaders.indexOf('Deposit_Actual') : ledgerHeaders.indexOf('Actual_Deposit'),
     Deposit_Planned: ledgerHeaders.indexOf('Deposit_Planned') !== -1 ? ledgerHeaders.indexOf('Deposit_Planned') : ledgerHeaders.indexOf('Planned_Deposit'),
     Grace_Deduction: ledgerHeaders.indexOf('Grace_Deduction'),
+    Grace_Override: ledgerHeaders.indexOf('Grace_Override'),
     End_Balance: ledgerHeaders.indexOf('End_Balance')
   };
+
+  const settingsData = ss.getSheetByName('System_Settings').getDataRange().getValues().slice(1);
+  const settings = {};
+  settingsData.forEach(row => {
+    if (row[0]) settings[String(row[0])] = row[1];
+  });
+  const kavuaInterestRate = (parseFloat(settings.Kavua_Interest_Rate) || 4.46) / 100;
 
   const smartParseDate = (val) => {
     if (!val) return new Date(0);
@@ -83,19 +91,25 @@ function recalculateGrace(ss) {
       // IF LOCKED: Trust the DB for the Grace amount, do NOT recalculate it.
       graceDeduction = parseFloat(ledgerData[i][idx.Grace_Deduction]) || 0;
     } else {
-      // IF UNLOCKED: Calculate Grace dynamically
-      let currentMonthDate = smartParseDate(ledgerData[i][idx.Month]);
-      if (isNaN(currentMonthDate.getTime())) {
-        currentMonthDate = new Date(String(ledgerData[i][idx.Month]) + '-01');
+      const hasOverride = idx.Grace_Override !== -1 && ledgerData[i][idx.Grace_Override] !== '' && ledgerData[i][idx.Grace_Override] !== null;
+      if (hasOverride) {
+        // Bank-provided one-off charge for a partial interest period.
+        graceDeduction = parseFloat(ledgerData[i][idx.Grace_Override]) || 0;
+      } else {
+        // IF UNLOCKED: Calculate Grace dynamically
+        let currentMonthDate = smartParseDate(ledgerData[i][idx.Month]);
+        if (isNaN(currentMonthDate.getTime())) {
+          currentMonthDate = new Date(String(ledgerData[i][idx.Month]) + '-01');
+        }
+
+        let funds = getActiveDrawnFunds(currentMonthDate);
+        let primePercent = getApplicablePrimeRate(currentMonthDate);
+        let primeDec = (primePercent / 100) - 0.007;
+
+        graceDeduction = (funds.Mishtana * 0.0485 / 12) +
+                         (funds.Kavua * kavuaInterestRate / 12) +
+                         (funds.Prime * primeDec / 12);
       }
-
-      let funds = getActiveDrawnFunds(currentMonthDate);
-      let primePercent = getApplicablePrimeRate(currentMonthDate);
-      let primeDec = (primePercent / 100) - 0.007;
-
-      graceDeduction = (funds.Mishtana * 0.0485 / 12) +
-                       (funds.Kavua * 0.0480 / 12) +
-                       (funds.Prime * primeDec / 12);
 
       ledgerData[i][idx.Grace_Deduction] = graceDeduction;
     }

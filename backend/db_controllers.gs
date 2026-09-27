@@ -52,7 +52,7 @@ function getState() {
     if (String(m.Is_Drawn).toUpperCase() === 'TRUE') {
       const amt = parseFloat(m.Amount) || 0;
       totalDrawnAll += amt;
-      if (String(m.Track) !== 'Index_Linkage_Charge') {
+      if (!String(m.Track).toLowerCase().includes('index_linkage_charge')) {
          totalDrawnPrincipalOnly += amt;
       }
     }

@@ -34,7 +34,7 @@ function calculateIndexDelta(targetMonthDate) {
   milestonesData.forEach(m => {
     let mDate = _parseDate(m.Date);
     if (mDate <= targetMonthDate) {
-      if (String(m.Track) !== 'Index_Linkage_Charge') {
+      if (!String(m.Track).toLowerCase().includes('index_linkage_charge')) {
         totalDrawnPrincipalOnly += parseFloat(m.Amount) || 0;
       }
     }
